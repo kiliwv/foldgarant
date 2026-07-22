@@ -75,6 +75,7 @@ async function handleSetup(request: Request, env: Env): Promise<Response> {
   }
 
   const ctx = makeCtx(env);
+  await ctx.db.ensureBalancesTable(); // миграция для баз без таблицы балансов
   const webhookUrl = `${url.origin}/tg/webhook`;
   await ctx.tg.setWebhook(webhookUrl, env.WEBHOOK_SECRET);
   await ctx.tg.setMyCommands(COMMANDS);

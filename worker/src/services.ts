@@ -12,6 +12,11 @@ export function payoutAmount(amount: number, commissionPercent: number): number 
   return round8(amount * (1 - commissionPercent / 100));
 }
 
+/** Имя платёжного бота с учётом тестнета. */
+export function cryptoBotName(ctx: Ctx): string {
+  return ctx.cfg.cryptopayTestnet ? "@CryptoTestnetBot" : "@CryptoBot";
+}
+
 /** Отправляет личное сообщение. false — если пользователь не запускал бота. */
 export async function notify(
   ctx: Ctx,
@@ -57,10 +62,34 @@ export async function releaseToSeller(
   } catch (e) {
     const name = e instanceof CryptoPayError ? e.errorName : String(e);
     console.error(`Ошибка выплаты по сделке ${deal.id}: ${name}`);
+    // Прямая выплата не прошла (например, продавец не открывал CryptoBot) —
+    // зачисляем на внутренний баланс, сделку закрываем.
+    await ctx.db.creditBalance(deal.seller_id!, deal.asset, amount);
+    await ctx.db.setStatus(deal.id, d.COMPLETED);
+    await notify(
+      ctx,
+      deal.seller_id,
+      `✅ Сделка #${deal.id} завершена, но мгновенная выплата не прошла (${name}).\n\n` +
+        `💼 <b>${fmtAmount(amount)} ${deal.asset}</b> зачислены на ваш баланс в боте.\n` +
+        `Нажмите Start у ${cryptoBotName(ctx)}, затем откройте «Кошелёк» в /start ` +
+        "и нажмите «Вывести».",
+    );
+    await notify(
+      ctx,
+      deal.buyer_id,
+      `✅ Сделка #${deal.id} завершена. Средства выплачены продавцу.`,
+    );
     for (const adminId of ctx.cfg.adminIds) {
-      await notify(ctx, adminId, `🚨 Ошибка выплаты продавцу по сделке #${deal.id}: ${name}`);
+      await notify(
+        ctx,
+        adminId,
+        `💼 Выплата по сделке #${deal.id} не прошла (${name}) — ` +
+          "средства зачислены на внутренний баланс продавца.",
+      );
     }
-    return false;
+    const freshFail = await ctx.db.getDeal(deal.id);
+    if (freshFail) await askRatings(ctx, freshFail);
+    return true;
   }
 
   await ctx.db.setStatus(deal.id, d.COMPLETED);
@@ -99,10 +128,30 @@ export async function refundToBuyer(
   } catch (e) {
     const name = e instanceof CryptoPayError ? e.errorName : String(e);
     console.error(`Ошибка возврата по сделке ${deal.id}: ${name}`);
+    await ctx.db.creditBalance(deal.buyer_id!, deal.asset, deal.amount);
+    await ctx.db.setStatus(deal.id, d.REFUNDED);
+    await notify(
+      ctx,
+      deal.buyer_id,
+      `↩️ Сделка #${deal.id} закрыта с возвратом, но мгновенный перевод не прошёл (${name}).\n\n` +
+        `💼 <b>${fmtAmount(deal.amount)} ${deal.asset}</b> зачислены на ваш баланс в боте.\n` +
+        `Нажмите Start у ${cryptoBotName(ctx)}, затем откройте «Кошелёк» в /start ` +
+        "и нажмите «Вывести».",
+    );
+    await notify(
+      ctx,
+      deal.seller_id,
+      `↩️ Сделка #${deal.id} закрыта, средства возвращены покупателю.`,
+    );
     for (const adminId of ctx.cfg.adminIds) {
-      await notify(ctx, adminId, `🚨 Ошибка возврата покупателю по сделке #${deal.id}: ${name}`);
+      await notify(
+        ctx,
+        adminId,
+        `💼 Возврат по сделке #${deal.id} не прошёл (${name}) — ` +
+          "средства зачислены на внутренний баланс покупателя.",
+      );
     }
-    return false;
+    return true;
   }
 
   await ctx.db.setStatus(deal.id, d.REFUNDED);
