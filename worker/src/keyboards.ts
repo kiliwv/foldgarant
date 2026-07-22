@@ -39,6 +39,7 @@ const ICONS: Record<string, string> = {
   pay: "5927169041595634481",
   processing: "5900104897885376843",
   money: "5974217466270716579",
+  skip: "6005775159384870794",
 };
 
 function btn(
@@ -174,7 +175,7 @@ export function rateKb(dealId: string): InlineKeyboardMarkup {
 }
 
 export function skipCommentKb(): InlineKeyboardMarkup {
-  return kb([[{ text: "⏭ Пропустить", callback_data: "rate:skip_comment" }]]);
+  return kb([[btn("skip", "⏭", "Пропустить", { callback_data: "rate:skip_comment" })]]);
 }
 
 export function adminPanelKb(counts: {
