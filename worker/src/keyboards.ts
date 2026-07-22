@@ -177,6 +177,58 @@ export function skipCommentKb(): InlineKeyboardMarkup {
   return kb([[{ text: "⏭ Пропустить", callback_data: "rate:skip_comment" }]]);
 }
 
+export function adminPanelKb(counts: {
+  disputed: number;
+  paid: number;
+  waitingPayment: number;
+  waitingParty: number;
+}): InlineKeyboardMarkup {
+  return kb([
+    [
+      btn("warn", "⚠️", `Споры (${counts.disputed})`, {
+        callback_data: "adm:list:disputed",
+        style: counts.disputed > 0 ? DANGER : undefined,
+      }),
+      btn("pay", "🔒", `В холде (${counts.paid})`, { callback_data: "adm:list:paid" }),
+    ],
+    [
+      btn("processing", "💳", `Ждут оплату (${counts.waitingPayment})`, {
+        callback_data: "adm:list:waiting_payment",
+      }),
+      btn("mydeals", "⏳", `Ждут участника (${counts.waitingParty})`, {
+        callback_data: "adm:list:waiting_party",
+      }),
+    ],
+    [
+      btn("money", "💰", "Баланс", { callback_data: "adm:balance" }),
+      { text: "🔄 Обновить", callback_data: "adm:panel" },
+    ],
+  ]);
+}
+
+/** Действия администратора по конкретной сделке (в списках /admin). */
+export function adminDealKb(dealId: string, status: string): InlineKeyboardMarkup {
+  if (status === "paid" || status === "disputed") {
+    return kb([
+      [
+        btn("money", "💸", "Выплатить продавцу", {
+          callback_data: `adm:release:${dealId}`,
+          style: SUCCESS,
+        }),
+      ],
+      [
+        btn("back", "↩️", "Вернуть покупателю", {
+          callback_data: `adm:refund:${dealId}`,
+          style: DANGER,
+        }),
+      ],
+    ]);
+  }
+  return kb([
+    [btn("cancel", "✖️", "Отменить сделку", { callback_data: `adm:cancel:${dealId}`, style: DANGER })],
+  ]);
+}
+
 export function disputeResolveKb(dealId: string): InlineKeyboardMarkup {
   return kb([
     [
