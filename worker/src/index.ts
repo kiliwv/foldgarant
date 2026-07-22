@@ -29,7 +29,7 @@ async function handleTelegramWebhook(request: Request, env: Env): Promise<Respon
   }
 
   const update = (await request.json()) as TgUpdate;
-  const ctx = makeCtx(env);
+  const ctx = makeCtx(env, new URL(request.url).origin);
   try {
     await handleUpdate(ctx, update);
   } catch (e) {

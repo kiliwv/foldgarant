@@ -11,9 +11,11 @@ export interface Ctx {
   cp: CryptoPay;
   cfg: Config;
   ai?: Ai;
+  /** https-адрес воркера (для ссылок на статику), есть только в fetch-обработчике. */
+  origin?: string;
 }
 
-export function makeCtx(env: Env): Ctx {
+export function makeCtx(env: Env, origin?: string): Ctx {
   const cfg = loadConfig(env);
   return {
     tg: new Telegram(env.BOT_TOKEN),
@@ -21,5 +23,6 @@ export function makeCtx(env: Env): Ctx {
     cp: new CryptoPay(env.CRYPTOPAY_TOKEN, cfg.cryptopayTestnet),
     cfg,
     ai: env.AI,
+    origin,
   };
 }
