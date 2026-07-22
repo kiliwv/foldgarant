@@ -24,14 +24,14 @@ const MONO = "︎";
 // Работает при Fragment-юзернейме бота или Telegram Premium у владельца.
 // Пустая строка — вместо иконки используется обычный эмодзи из текста.
 const ICONS: Record<string, string> = {
-  profile: "",
-  search: "",
-  newdeal: "",
-  mydeals: "",
-  help: "",
-  back: "",
-  buyer: "",
-  seller: "",
+  profile: "5886412370347036129",
+  search: "5874960879434338403",
+  newdeal: "5886306834410640699",
+  mydeals: "5967389567781703494",
+  help: "5897846616966041652",
+  back: "5875082500023258804",
+  buyer: "5920344347152224466",
+  seller: "5983399041197675256",
 };
 
 function btn(
