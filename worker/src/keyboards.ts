@@ -40,7 +40,34 @@ const ICONS: Record<string, string> = {
   processing: "5900104897885376843",
   money: "5974217466270716579",
   skip: "6005775159384870794",
+  lock: "5879895758202735862",
 };
+
+// Иконка статуса сделки для кнопок списков
+const STATUS_ICON: Record<string, string> = {
+  waiting_party: "processing",
+  waiting_payment: "pay",
+  paid: "lock",
+  completed: "check",
+  refunded: "back",
+  disputed: "warn",
+  cancelled: "cancel",
+};
+
+/** Кнопка сделки в списке: иконка по статусу + подпись. */
+export function dealListBtn(
+  status: string,
+  emoji: string,
+  label: string,
+  callbackData: string,
+): InlineKeyboardButton {
+  return btn(STATUS_ICON[status] ?? "mydeals", emoji, label, { callback_data: callbackData });
+}
+
+/** Кнопка-переключатель списков сделок (активные/история). */
+export function listToggleBtn(label: string, callbackData: string): InlineKeyboardButton {
+  return btn("mydeals", "🗂", label, { callback_data: callbackData });
+}
 
 function btn(
   icon: string,
