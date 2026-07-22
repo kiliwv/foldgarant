@@ -5,6 +5,7 @@ import type { Ctx } from "../ctx";
 import * as d from "../db";
 import {
   adminPanelKb,
+  backButtonRow,
   backKb,
   buyerEscrowKb,
   cancelDealKb,
@@ -17,8 +18,8 @@ import {
   skipCommentKb,
   disputeResolveKb,
 } from "../keyboards";
-import { fmtAmount, dealCard, escapeHtml, reputationLine, round8 } from "../utils";
-import type { TgMessage } from "../types";
+import { STATUS_EMOJI, fmtAmount, dealCard, escapeHtml, reputationLine, round8 } from "../utils";
+import type { InlineKeyboardMarkup, TgMessage } from "../types";
 import { fullName } from "../types";
 
 export const MAX_DESCRIPTION = 500;
@@ -98,26 +99,52 @@ export async function profileText(ctx: Ctx, userId: number): Promise<string> {
   return lines.join("\n");
 }
 
-export async function sendMyDeals(ctx: Ctx, chatId: number, userId: number): Promise<void> {
-  const deals = await ctx.db.userActiveDeals(userId);
-  if (!deals.length) {
-    await ctx.tg.sendMessage(chatId, "📂 У вас нет активных сделок.", {
-      reply_markup: mainMenu(),
-    });
-    return;
+/** Экран «Мои сделки» / «История сделок»: список кнопками в одном сообщении. */
+export async function myDealsView(
+  ctx: Ctx,
+  userId: number,
+  mode: "active" | "history",
+): Promise<{ text: string; kb: InlineKeyboardMarkup }> {
+  const deals =
+    mode === "active"
+      ? await ctx.db.userActiveDeals(userId)
+      : await ctx.db.userClosedDeals(userId);
+
+  const title = mode === "active" ? "📂 <b>Мои сделки</b>" : "🗂 <b>История сделок</b>";
+  const empty =
+    mode === "active" ? "У вас нет активных сделок." : "История пока пуста.";
+  const text = deals.length ? `${title}\n\nВыберите сделку:` : `${title}\n\n${empty}`;
+
+  const rows: InlineKeyboardMarkup["inline_keyboard"] = deals.map((deal) => [
+    {
+      text: `${STATUS_EMOJI[deal.status] ?? ""} #${deal.id} · ${fmtAmount(deal.amount)} ${deal.asset}`,
+      callback_data: `deal:view:${deal.id}`,
+    },
+  ]);
+  rows.push([
+    mode === "active"
+      ? { text: "🗂 История сделок", callback_data: "menu:history" }
+      : { text: "📂 Активные сделки", callback_data: "menu:mydeals" },
+  ]);
+  rows.push(backButtonRow("menu:back"));
+  return { text, kb: { inline_keyboard: rows } };
+}
+
+/** Клавиатура действий по сделке для конкретного участника (или undefined). */
+export function dealActionsKb(
+  deal: import("../db").DealRow,
+  userId: number,
+): InlineKeyboardMarkup | undefined {
+  if (deal.status === d.PAID) {
+    return userId === deal.buyer_id ? buyerEscrowKb(deal.id) : sellerEscrowKb(deal.id);
   }
-  for (const deal of deals) {
-    const card = await dealCard(ctx.db, deal);
-    let kb;
-    if (deal.status === d.PAID) {
-      kb = userId === deal.buyer_id ? buyerEscrowKb(deal.id) : sellerEscrowKb(deal.id);
-    } else if (deal.status === d.WAITING_PAYMENT && userId === deal.buyer_id && deal.pay_url) {
-      kb = payKb(deal.pay_url, deal.id);
-    } else if (deal.status === d.WAITING_PARTY || deal.status === d.WAITING_PAYMENT) {
-      kb = cancelDealKb(deal.id);
-    }
-    await ctx.tg.sendMessage(chatId, card, { reply_markup: kb });
+  if (deal.status === d.WAITING_PAYMENT && userId === deal.buyer_id && deal.pay_url) {
+    return payKb(deal.pay_url, deal.id);
   }
+  if (deal.status === d.WAITING_PARTY || deal.status === d.WAITING_PAYMENT) {
+    return cancelDealKb(deal.id);
+  }
+  return undefined;
 }
 
 function isAdmin(ctx: Ctx, userId: number): boolean {
@@ -164,16 +191,15 @@ async function cmdStart(ctx: Ctx, msg: TgMessage, args: string): Promise<void> {
   await ctx.tg.sendMessage(msg.chat.id, WELCOME, { reply_markup: mainMenu() });
 }
 
+export const ROLE_TEXT =
+  "🛡 <b>Создание сделки</b>\n\n" +
+  "Кем вы выступаете?\n\n" +
+  "🛒 <b>Покупатель</b> — вы платите и ждёте товар или услугу\n" +
+  "💼 <b>Продавец</b> — вы передаёте товар или услугу и ждёте оплату";
+
 export async function startNewDeal(ctx: Ctx, chatId: number, userId: number): Promise<void> {
   await ctx.db.setState(userId, ST_NEWDEAL_ROLE, {});
-  await ctx.tg.sendMessage(
-    chatId,
-    "🛡 <b>Создание сделки</b>\n\n" +
-      "Кем вы выступаете?\n\n" +
-      "🛒 <b>Покупатель</b> — вы платите и ждёте товар или услугу\n" +
-      "💼 <b>Продавец</b> — вы передаёте товар или услугу и ждёте оплату",
-    { reply_markup: roleKb() },
-  );
+  await ctx.tg.sendMessage(chatId, ROLE_TEXT, { reply_markup: roleKb() });
 }
 
 /** Ищет профиль по «@юзернейм» / «юзернейм» / числовому ID. */
@@ -633,8 +659,11 @@ export async function handleMessage(ctx: Ctx, msg: TgMessage): Promise<void> {
       case "/newdeal":
         await ctx.db.upsertUser(user.id, user.username ?? null, fullName(user));
         return startNewDeal(ctx, msg.chat.id, user.id);
-      case "/mydeals":
-        return sendMyDeals(ctx, msg.chat.id, user.id);
+      case "/mydeals": {
+        const view = await myDealsView(ctx, user.id, "active");
+        await ctx.tg.sendMessage(msg.chat.id, view.text, { reply_markup: view.kb });
+        return;
+      }
       case "/profile":
         await ctx.tg.sendMessage(msg.chat.id, await profileText(ctx, user.id));
         return;

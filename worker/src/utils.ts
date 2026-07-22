@@ -13,6 +13,16 @@ export const STATUS_LABELS: Record<string, string> = {
   [d.CANCELLED]: "❌ Отменена",
 };
 
+export const STATUS_EMOJI: Record<string, string> = {
+  [d.WAITING_PARTY]: "⏳",
+  [d.WAITING_PAYMENT]: "💳",
+  [d.PAID]: "🔒",
+  [d.COMPLETED]: "✅",
+  [d.REFUNDED]: "↩️",
+  [d.DISPUTED]: "⚠️",
+  [d.CANCELLED]: "❌",
+};
+
 export function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
