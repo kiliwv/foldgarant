@@ -234,6 +234,25 @@ async function cmdBalance(ctx: Ctx, msg: TgMessage): Promise<void> {
   await ctx.tg.sendMessage(msg.chat.id, lines.join("\n"));
 }
 
+/** Тест вариантов разметки цитат — чтобы подобрать вид без цветной полоски. */
+async function cmdTestQuote(ctx: Ctx, msg: TgMessage): Promise<void> {
+  await ctx.tg.sendMessage(
+    msg.chat.id,
+    "<blockquote>💸 <b>Вариант 1</b>\n\nВсё сообщение — одна цитата, " +
+      "с первого символа до последнего.\nСтрока для объёма.</blockquote>",
+  );
+  await ctx.tg.sendMessage(
+    msg.chat.id,
+    "💸 <b>Вариант 2</b>\n<blockquote>Цитата — только часть сообщения " +
+      "(так сделано сейчас).</blockquote>",
+  );
+  await ctx.tg.sendMessage(
+    msg.chat.id,
+    "<blockquote expandable>💸 <b>Вариант 3</b>\n\nСворачиваемая цитата на всё сообщение.\n" +
+      "Строка 2.\nСтрока 3.\nСтрока 4.</blockquote>",
+  );
+}
+
 /** Показывает ID кастомных эмодзи из сообщения (для icon_custom_emoji_id). */
 async function cmdEmojiId(ctx: Ctx, msg: TgMessage): Promise<void> {
   const ids = (msg.entities ?? [])
@@ -403,6 +422,9 @@ export async function handleMessage(ctx: Ctx, msg: TgMessage): Promise<void> {
         return;
       case "/emojiid":
         if (isAdmin(ctx, user.id)) return cmdEmojiId(ctx, msg);
+        return;
+      case "/testquote":
+        if (isAdmin(ctx, user.id)) return cmdTestQuote(ctx, msg);
         return;
       case "/ban":
         if (isAdmin(ctx, user.id)) return cmdBanUnban(ctx, msg, true);
