@@ -453,25 +453,50 @@ async function fsmSearch(ctx: Ctx, msg: TgMessage): Promise<void> {
  * ИИ-проверка скриншота переписки (Workers AI, модель со зрением).
  * При недоступности ИИ пропускаем проверку, чтобы не блокировать отзывы.
  */
+const SCREENSHOT_PROMPT =
+  "You are a strict anti-fraud reviewer for an escrow service. Users must " +
+  "prove a deal happened by sending a screenshot of their PRIVATE CHAT with " +
+  "the OTHER PERSON (their counterparty).\n" +
+  "Look at the image and answer with the FIRST WORD strictly YES or NO, then " +
+  "one short reason.\n" +
+  "Answer YES only if ALL conditions hold:\n" +
+  "- it is a screenshot of a messenger conversation between TWO HUMANS, with " +
+  "message bubbles from both sides (left and right);\n" +
+  "- the messages discuss a deal: goods, a service, payment, price or delivery.\n" +
+  "Answer NO if the screenshot shows a BOT interface (welcome menus, inline " +
+  "buttons, commands, an escrow/guarantor bot chat), a channel, a one-sided " +
+  "message list, a random photo, a meme, a blank or unreadable image, or " +
+  "anything that is not a two-person deal conversation.";
+
 async function checkScreenshot(
   ctx: Ctx,
   fileId: string,
 ): Promise<{ ok: boolean; reason: string }> {
   if (!ctx.ai) return { ok: true, reason: "ИИ не подключён" };
   const buf = await ctx.tg.downloadFile(fileId);
-  const res = (await ctx.ai.run("@cf/llava-hf/llava-1.5-7b-hf", {
-    image: [...new Uint8Array(buf)],
-    prompt:
-      "You are an anti-fraud reviewer for an escrow service. Look at the image. " +
-      "Is it a genuine screenshot of a messenger chat conversation (Telegram, " +
-      "WhatsApp etc.) between two people discussing a deal, payment, goods or a " +
-      "service? Answer strictly YES or NO, then one short reason. Answer NO if " +
-      "the image is not a chat screenshot, is a random photo, a meme, a blank " +
-      "image, or looks fabricated.",
-    max_tokens: 80,
-  })) as { description?: string };
-  const text = (res.description ?? "").trim();
-  return { ok: /\byes\b/i.test(text), reason: text };
+  const image = [...new Uint8Array(buf)];
+
+  // Основная модель посильнее; при её недоступности — фолбэк на llava
+  let text = "";
+  try {
+    const res = (await ctx.ai.run("@cf/meta/llama-3.2-11b-vision-instruct", {
+      image,
+      prompt: SCREENSHOT_PROMPT,
+      max_tokens: 80,
+    })) as { response?: string; description?: string };
+    text = (res.response ?? res.description ?? "").trim();
+  } catch {
+    const res = (await ctx.ai.run("@cf/llava-hf/llava-1.5-7b-hf", {
+      image,
+      prompt: SCREENSHOT_PROMPT,
+      max_tokens: 80,
+    })) as { description?: string };
+    text = (res.description ?? "").trim();
+  }
+
+  // Вердикт — первое слово ответа; страховка от "not/no ... yes" в объяснении
+  const ok = /^\W*yes\b/i.test(text);
+  return { ok, reason: text };
 }
 
 async function fsmRateScreenshot(
