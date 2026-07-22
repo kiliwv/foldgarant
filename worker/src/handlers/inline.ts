@@ -45,10 +45,11 @@ export function parseQuery(text: string, cfg: Config): ParsedQuery | null {
     description = `${second} ${rest}`.trim();
   }
 
+  // Условия сделки обязательны — без них результат не предлагается
   return {
     amount,
     asset,
-    description: description.slice(0, MAX_DESCRIPTION) || "Без описания",
+    description: description.slice(0, MAX_DESCRIPTION),
   };
 }
 
@@ -57,19 +58,20 @@ function thumb(origin: string | undefined, name: string) {
 }
 
 function helpArticle(cfg: Config, origin?: string, note = ""): Record<string, unknown> {
-  const botHint = "сумма [валюта] описание";
+  const botHint = "сумма условия сделки";
   return {
     type: "article",
     id: "help",
     title: note || `Формат: ${botHint}`,
-    description: `Например: 25 USDT дизайн логотипа • валюты: ${cfg.assets.join(", ")}`,
+    description: `Например: 25 дизайн логотипа до пятницы • условия обязательны`,
     ...thumb(origin, "help"),
     input_message_content: {
       message_text:
         "ℹ️ <b>Как создать сделку прямо в чате</b>\n\n" +
         `Введите: <code>@имя_бота ${botHint}</code>\n` +
-        "Например: <code>@имя_бота 25 USDT дизайн логотипа</code>\n" +
-        `и выберите свою роль. Минимальная сумма: ${fmtAmount(cfg.minAmount)}.`,
+        "Например: <code>@имя_бота 25 дизайн логотипа до пятницы</code>\n" +
+        "и выберите свою роль. Условия сделки обязательны. " +
+        `Минимальная сумма: ${fmtAmount(cfg.minAmount)}.`,
       parse_mode: "HTML",
     },
   };
@@ -88,6 +90,14 @@ export async function handleInlineQuery(ctx: Ctx, query: TgInlineQuery): Promise
     await ctx.tg.answerInlineQuery(
       query.id,
       [helpArticle(ctx.cfg, ctx.origin, `Минимальная сумма — ${fmtAmount(ctx.cfg.minAmount)}`)],
+      { cache_time: 1, is_personal: true },
+    );
+    return;
+  }
+  if (!parsed.description) {
+    await ctx.tg.answerInlineQuery(
+      query.id,
+      [helpArticle(ctx.cfg, ctx.origin, "Допишите условия сделки — они обязательны")],
       { cache_time: 1, is_personal: true },
     );
     return;
@@ -128,7 +138,7 @@ export async function handleChosenInlineResult(
   if (chosen.result_id !== "seller" && chosen.result_id !== "buyer") return;
   if (!chosen.inline_message_id) return;
   const parsed = parseQuery(chosen.query, ctx.cfg);
-  if (!parsed || parsed.amount < ctx.cfg.minAmount) return;
+  if (!parsed || parsed.amount < ctx.cfg.minAmount || !parsed.description) return;
 
   const user = chosen.from;
   await ctx.db.upsertUser(user.id, user.username ?? null, fullName(user));
@@ -149,7 +159,7 @@ export async function handleChosenInlineResult(
     `├ Сумма: <b>${fmtAmount(parsed.amount)} ${parsed.asset}</b>\n` +
     `├ Комиссия гаранта: ${ctx.cfg.commissionPercent}% ` +
     `(продавец получит ${fmtAmount(payout)} ${parsed.asset})\n` +
-    `└ Описание: ${escapeHtml(parsed.description)}\n\n` +
+    `└ Условия: ${escapeHtml(parsed.description)}\n\n` +
     `🟢 Нажмите кнопку, чтобы присоединиться в роли <b>${roleFree}</b>.\n` +
     "Деньги покупателя хранятся у гаранта до подтверждения получения.";
   await ctx.tg.editMessageText({

@@ -436,7 +436,8 @@ async function fsmAmount(ctx: Ctx, msg: TgMessage, data: Record<string, unknown>
   await ctx.db.setState(msg.from!.id, ST_NEWDEAL_DESCRIPTION, { ...data, amount: round8(amount) });
   await ctx.tg.sendMessage(
     msg.chat.id,
-    "📝 Опишите предмет сделки (что передаётся, сроки, условия). " +
+    "📝 <b>Укажите условия сделки</b> — обязательный шаг.\n\n" +
+      "Что передаётся, в какие сроки, как проверяется результат. " +
       `До ${MAX_DESCRIPTION} символов:`,
   );
 }
@@ -448,7 +449,7 @@ async function fsmDescription(
 ): Promise<void> {
   const description = (msg.text ?? "").trim();
   if (!description) {
-    await ctx.tg.sendMessage(msg.chat.id, "❌ Отправьте текстовое описание сделки:");
+    await ctx.tg.sendMessage(msg.chat.id, "❌ Без условий сделка не создаётся. Отправьте текст условий:");
     return;
   }
   if (description.length > MAX_DESCRIPTION) {
@@ -472,7 +473,7 @@ async function fsmDescription(
       `├ Сумма: <b>${fmtAmount(amount)} ${asset}</b>\n` +
       `├ Комиссия сервиса: ${ctx.cfg.commissionPercent}% ` +
       `(продавец получит ${fmtAmount(round8(payout))} ${asset})\n` +
-      `└ Описание: ${escapeHtml(description)}`,
+      `└ Условия: ${escapeHtml(description)}`,
     { reply_markup: confirmDealKb() },
   );
 }

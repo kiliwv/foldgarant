@@ -59,7 +59,7 @@ export async function dealCard(db: Db, deal: DealRow): Promise<string> {
     `├ Продавец: ${seller}\n` +
     `├ Покупатель: ${buyer}\n` +
     `├ Сумма: <b>${fmtAmount(deal.amount)} ${deal.asset}</b>\n` +
-    `├ Описание: ${escapeHtml(deal.description)}\n` +
+    `├ Условия: ${escapeHtml(deal.description)}\n` +
     `└ Статус: ${STATUS_LABELS[deal.status] ?? deal.status}`
   );
 }
