@@ -92,7 +92,7 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
     if (cb.message) {
       await ctx.tg.sendMessage(
         cb.message.chat.id,
-        "🔍 <b>Поиск</b>\n<blockquote>Введите @юзернейм или ID пользователя для поиска.</blockquote>",
+        "🔍 <b>Поиск</b>\n\nВведите @юзернейм или ID пользователя для поиска.",
         { reply_markup: backKb() },
       );
     }
@@ -139,9 +139,9 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
       await editSource(
         ctx,
         cb,
-        `💰 <b>Введите сумму сделки в ${asset}</b>\n` +
-          `<blockquote>Минимум: ${fmtAmount(ctx.cfg.minAmount)} ${asset}\n` +
-          "Пример: <code>50</code> или <code>12.5</code></blockquote>",
+        `💰 <b>Введите сумму сделки в ${asset}</b>\n\n` +
+          `Минимум: ${fmtAmount(ctx.cfg.minAmount)} ${asset}\n` +
+          "Пример: <code>50</code> или <code>12.5</code>",
       );
     } else {
       await ctx.db.setState(user.id, ST_NEWDEAL_ASSET, { ...fsm, role });

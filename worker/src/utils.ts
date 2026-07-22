@@ -45,14 +45,12 @@ export async function dealCard(db: Db, deal: DealRow): Promise<string> {
   const seller = await userMention(db, deal.seller_id);
   const buyer = await userMention(db, deal.buyer_id);
   return (
-    `🧾 <b>Сделка #${deal.id}</b>\n` +
-    "<blockquote>" +
+    `🧾 <b>Сделка #${deal.id}</b>\n\n` +
     `├ Продавец: ${seller}\n` +
     `├ Покупатель: ${buyer}\n` +
     `├ Сумма: <b>${fmtAmount(deal.amount)} ${deal.asset}</b>\n` +
     `├ Описание: ${escapeHtml(deal.description)}\n` +
-    `└ Статус: ${STATUS_LABELS[deal.status] ?? deal.status}` +
-    "</blockquote>"
+    `└ Статус: ${STATUS_LABELS[deal.status] ?? deal.status}`
   );
 }
 

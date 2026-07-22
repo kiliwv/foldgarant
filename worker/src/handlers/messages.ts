@@ -32,28 +32,24 @@ export const ST_RATE_COMMENT = "rate:waiting_comment";
 export const ST_SEARCH = "search:query";
 
 export const WELCOME =
-  "🛡 <b>Гарант-сервис — безопасные сделки</b>\n" +
-  "<blockquote>Деньги покупателя хранятся у гаранта (через @CryptoBot) " +
+  "🛡 <b>Гарант-сервис — безопасные сделки</b>\n\n" +
+  "Деньги покупателя хранятся у гаранта (через @CryptoBot) " +
   "и передаются продавцу только после подтверждения получения " +
   "товара или услуги.\n\n" +
   "Проверяйте репутацию пользователей перед сделкой и оставляйте " +
-  "отзывы после.</blockquote>\n" +
+  "отзывы после.\n\n" +
   "Выберите действие:";
 
 export const HELP_TEXT =
-  "ℹ️ <b>Как проходит сделка</b>\n" +
-  "<blockquote>" +
+  "ℹ️ <b>Как проходит сделка</b>\n\n" +
   "1️⃣ Один из участников создаёт сделку и получает ссылку-приглашение.\n" +
   "2️⃣ Второй участник переходит по ссылке и присоединяется.\n" +
   "3️⃣ Покупатель оплачивает счёт через @CryptoBot — деньги замораживаются у гаранта.\n" +
   "4️⃣ Продавец передаёт товар/услугу.\n" +
-  "5️⃣ Покупатель подтверждает получение — деньги уходят продавцу (за вычетом комиссии сервиса)." +
-  "</blockquote>\n" +
-  "<blockquote>" +
+  "5️⃣ Покупатель подтверждает получение — деньги уходят продавцу (за вычетом комиссии сервиса).\n\n" +
   "⚠️ Если что-то пошло не так — любая из сторон может открыть спор, " +
   "его рассмотрит администратор.\n" +
-  "⭐️ После каждой сделки участники оценивают друг друга — так формируется репутация." +
-  "</blockquote>\n" +
+  "⭐️ После каждой сделки участники оценивают друг друга — так формируется репутация.\n\n" +
   "⚡️ <b>Сделка прямо в чате</b>: в любом диалоге введите\n" +
   "<code>@имя_бота 25 дизайн логотипа</code>\n" +
   "выберите роль — и собеседнику придёт приглашение с кнопкой (как @send у CryptoBot).\n\n" +
@@ -80,20 +76,20 @@ export async function profileText(ctx: Ctx, userId: number): Promise<string> {
 
   const lines = [
     `👤 <b>Профиль ${escapeHtml(name)}</b> [ ID: <code>${userId}</code> ]`,
-    "<blockquote>" +
-      `⭐️ Репутация: ${reputationLine(stats.positive, stats.negative)}\n` +
-      `🤝 Сделки: <b>${stats.completed}</b> шт · оборот: ${volume}` +
-      "</blockquote>",
+    "",
+    `⭐️ Репутация: ${reputationLine(stats.positive, stats.negative)}`,
+    `🤝 Сделки: <b>${stats.completed}</b> шт · оборот: ${volume}`,
+    "",
     `<b>В сервисе с ${regDate}</b>`,
   ];
 
   if (reviews.length) {
-    const reviewLines = reviews.map((r) => {
+    lines.push("", "💬 <b>Последние отзывы:</b>");
+    for (const r of reviews) {
       const emoji = r.score > 0 ? "👍" : "👎";
       const author = r.from_username ? `@${r.from_username}` : "аноним";
-      return `${emoji} ${escapeHtml(author)}: «${escapeHtml(r.comment ?? "")}»`;
-    });
-    lines.push(`\n💬 <b>Последние отзывы:</b>\n<blockquote>${reviewLines.join("\n")}</blockquote>`);
+      lines.push(`${emoji} ${escapeHtml(author)}: «${escapeHtml(r.comment ?? "")}»`);
+    }
   }
 
   return lines.join("\n");
@@ -169,10 +165,10 @@ export async function startNewDeal(ctx: Ctx, chatId: number, userId: number): Pr
   await ctx.db.setState(userId, ST_NEWDEAL_ROLE, {});
   await ctx.tg.sendMessage(
     chatId,
-    "🛡 <b>Создание сделки</b>\n" +
-      "<blockquote>Кем вы выступаете?\n\n" +
+    "🛡 <b>Создание сделки</b>\n\n" +
+      "Кем вы выступаете?\n\n" +
       "🛒 <b>Покупатель</b> — вы платите и ждёте товар или услугу\n" +
-      "💼 <b>Продавец</b> — вы передаёте товар или услугу и ждёте оплату</blockquote>",
+      "💼 <b>Продавец</b> — вы передаёте товар или услугу и ждёте оплату",
     { reply_markup: roleKb() },
   );
 }
@@ -251,6 +247,41 @@ async function cmdTestQuote(ctx: Ctx, msg: TgMessage): Promise<void> {
     "<blockquote expandable>💸 <b>Вариант 3</b>\n\nСворачиваемая цитата на всё сообщение.\n" +
       "Строка 2.\nСтрока 3.\nСтрока 4.</blockquote>",
   );
+}
+
+// ID эмодзи, присланные владельцем через /emojiid (порядок: профиль, поиск,
+// щит, папка, инфо, назад, корзина, портфель).
+const TEST_ICON_IDS: [string, string][] = [
+  ["Профиль", "5886412370347036129"],
+  ["Поиск", "5874960879434338403"],
+  ["Новая сделка", "5886306834410640699"],
+  ["Мои сделки", "5967389567781703494"],
+  ["Как это работает", "5897846616966041652"],
+  ["Назад", "5875082500023258804"],
+  ["Покупатель", "5920344347152224466"],
+  ["Продавец", "5983399041197675256"],
+];
+
+/** Тест иконок из эмодзи-паков в кнопках (icon_custom_emoji_id). */
+async function cmdTestIcon(ctx: Ctx, msg: TgMessage): Promise<void> {
+  const rows = TEST_ICON_IDS.map(([label, id], i) => [
+    { text: `${i + 1}. ${label}`, callback_data: "icontest", icon_custom_emoji_id: id },
+  ]);
+  try {
+    await ctx.tg.sendMessage(
+      msg.chat.id,
+      "🧪 Тест иконок в кнопках.\nПроверьте, что иконки видны и совпадают с подписями:",
+      { reply_markup: { inline_keyboard: rows } },
+    );
+  } catch (e) {
+    await ctx.tg.sendMessage(
+      msg.chat.id,
+      "❌ Telegram отклонил иконки в кнопках:\n<code>" +
+        String(e) +
+        "</code>\n\nСкорее всего, у владельца бота нет активного Telegram Premium " +
+        "(или у бота нет Fragment-юзернейма).",
+    );
+  }
 }
 
 /** Показывает ID кастомных эмодзи из сообщения (для icon_custom_emoji_id). */
@@ -352,7 +383,7 @@ async function fsmSearch(ctx: Ctx, msg: TgMessage): Promise<void> {
   if (!query) {
     await ctx.tg.sendMessage(
       msg.chat.id,
-      "🔍 <b>Поиск</b>\n<blockquote>Отправьте @юзернейм или ID пользователя для поиска.</blockquote>",
+      "🔍 <b>Поиск</b>\n\nОтправьте @юзернейм или ID пользователя для поиска.",
       { reply_markup: backKb() },
     );
     return;
@@ -425,6 +456,9 @@ export async function handleMessage(ctx: Ctx, msg: TgMessage): Promise<void> {
         return;
       case "/testquote":
         if (isAdmin(ctx, user.id)) return cmdTestQuote(ctx, msg);
+        return;
+      case "/testicon":
+        if (isAdmin(ctx, user.id)) return cmdTestIcon(ctx, msg);
         return;
       case "/ban":
         if (isAdmin(ctx, user.id)) return cmdBanUnban(ctx, msg, true);
