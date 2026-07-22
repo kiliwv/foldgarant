@@ -1,5 +1,6 @@
 // Минимальный клиент Telegram Bot API поверх fetch.
 
+import { emojify } from "./custom-emoji";
 import type { InlineKeyboardMarkup, TgUser } from "./types";
 
 export class TelegramError extends Error {
@@ -43,7 +44,7 @@ export class Telegram {
   ) {
     return this.call("sendMessage", {
       chat_id: chatId,
-      text,
+      text: emojify(text),
       parse_mode: "HTML",
       ...extra,
     });
@@ -56,7 +57,11 @@ export class Telegram {
     text: string;
     reply_markup?: InlineKeyboardMarkup;
   }) {
-    return this.call("editMessageText", { parse_mode: "HTML", ...params });
+    return this.call("editMessageText", {
+      parse_mode: "HTML",
+      ...params,
+      text: emojify(params.text),
+    });
   }
 
   answerCallbackQuery(id: string, text?: string, showAlert = false) {
