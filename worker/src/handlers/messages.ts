@@ -4,6 +4,7 @@
 import type { Ctx } from "../ctx";
 import * as d from "../db";
 import {
+  backKb,
   buyerEscrowKb,
   cancelDealKb,
   confirmDealKb,
@@ -28,12 +29,15 @@ export const ST_NEWDEAL_AMOUNT = "newdeal:amount";
 export const ST_NEWDEAL_DESCRIPTION = "newdeal:description";
 export const ST_NEWDEAL_CONFIRM = "newdeal:confirm";
 export const ST_RATE_COMMENT = "rate:waiting_comment";
+export const ST_SEARCH = "search:query";
 
 export const WELCOME =
-  "👋 <b>Добро пожаловать в гарант-бота!</b>\n\n" +
-  "Я выступаю посредником в сделках между покупателем и продавцом:\n" +
-  "деньги покупателя хранятся у меня (через @CryptoBot) и передаются " +
-  "продавцу только после подтверждения получения товара или услуги.\n\n" +
+  "🛡 <b>Гарант-сервис — безопасные сделки</b>\n" +
+  "<blockquote>Деньги покупателя хранятся у гаранта (через @CryptoBot) " +
+  "и передаются продавцу только после подтверждения получения " +
+  "товара или услуги.\n\n" +
+  "Проверяйте репутацию пользователей перед сделкой и оставляйте " +
+  "отзывы после.</blockquote>\n" +
   "Выберите действие:";
 
 export const HELP_TEXT =
@@ -71,21 +75,21 @@ export async function profileText(ctx: Ctx, userId: number): Promise<string> {
     : "0";
 
   const lines = [
-    `👤 <b>Профиль ${escapeHtml(name)}</b>`,
-    `├ ID: <code>${userId}</code>`,
-    `├ В сервисе с: ${regDate}`,
-    `├ Завершённых сделок: <b>${stats.completed}</b>`,
-    `├ Оборот: ${volume}`,
-    `└ Репутация: ${reputationLine(stats.positive, stats.negative)}`,
+    `👤 <b>Профиль ${escapeHtml(name)}</b> [ ID: <code>${userId}</code> ]`,
+    "<blockquote>" +
+      `⭐️ Репутация: ${reputationLine(stats.positive, stats.negative)}\n` +
+      `🤝 Сделки: <b>${stats.completed}</b> шт · оборот: ${volume}` +
+      "</blockquote>",
+    `<b>В сервисе с ${regDate}</b>`,
   ];
 
   if (reviews.length) {
-    lines.push("\n💬 <b>Последние отзывы:</b>");
-    for (const r of reviews) {
+    const reviewLines = reviews.map((r) => {
       const emoji = r.score > 0 ? "👍" : "👎";
       const author = r.from_username ? `@${r.from_username}` : "аноним";
-      lines.push(`${emoji} ${escapeHtml(author)}: «${escapeHtml(r.comment ?? "")}»`);
-    }
+      return `${emoji} ${escapeHtml(author)}: «${escapeHtml(r.comment ?? "")}»`;
+    });
+    lines.push(`\n💬 <b>Последние отзывы:</b>\n<blockquote>${reviewLines.join("\n")}</blockquote>`);
   }
 
   return lines.join("\n");
@@ -159,19 +163,47 @@ async function cmdStart(ctx: Ctx, msg: TgMessage, args: string): Promise<void> {
 
 export async function startNewDeal(ctx: Ctx, chatId: number, userId: number): Promise<void> {
   await ctx.db.setState(userId, ST_NEWDEAL_ROLE, {});
-  await ctx.tg.sendMessage(chatId, "🤝 <b>Новая сделка</b>\n\nКто вы в этой сделке?", {
-    reply_markup: roleKb(),
-  });
+  await ctx.tg.sendMessage(
+    chatId,
+    "🛡 <b>Создание сделки</b>\n\n" +
+      "Кем вы выступаете?\n\n" +
+      "🛒 <b>Покупатель</b> — вы платите и ждёте товар или услугу\n" +
+      "💼 <b>Продавец</b> — вы передаёте товар или услугу и ждёте оплату",
+    { reply_markup: roleKb() },
+  );
+}
+
+/** Ищет профиль по «@юзернейм» / «юзернейм» / числовому ID. */
+export async function findProfile(ctx: Ctx, query: string): Promise<string> {
+  const q = query.trim();
+  if (/^\d+$/.test(q)) {
+    return profileText(ctx, parseInt(q, 10));
+  }
+  const username = q.replace(/^@/, "");
+  if (!username) return "❌ Отправьте @юзернейм или ID пользователя.";
+  const user = await ctx.db.getUserByUsername(username);
+  if (!user) {
+    return (
+      "❌ Пользователь не найден. Он должен хотя бы раз запустить этого бота, " +
+      "чтобы появиться в системе."
+    );
+  }
+  return profileText(ctx, user.id);
 }
 
 async function cmdWhois(ctx: Ctx, msg: TgMessage): Promise<void> {
   const parts = (msg.text ?? "").split(/\s+/).filter(Boolean);
   const arg = parts[1]?.trim();
-  if (!arg || !/^\d+$/.test(arg)) {
-    await ctx.tg.sendMessage(msg.chat.id, "Использование: <code>/whois ID_пользователя</code>");
+  if (!arg) {
+    await ctx.tg.sendMessage(
+      msg.chat.id,
+      "Использование: <code>/whois @юзернейм</code> или <code>/whois ID</code>",
+    );
     return;
   }
-  await ctx.tg.sendMessage(msg.chat.id, await profileText(ctx, parseInt(arg, 10)));
+  await ctx.tg.sendMessage(msg.chat.id, await findProfile(ctx, arg), {
+    reply_markup: backKb(),
+  });
 }
 
 async function cmdDisputes(ctx: Ctx, msg: TgMessage): Promise<void> {
@@ -272,6 +304,22 @@ async function fsmDescription(
   );
 }
 
+async function fsmSearch(ctx: Ctx, msg: TgMessage): Promise<void> {
+  const query = (msg.text ?? "").trim();
+  if (!query) {
+    await ctx.tg.sendMessage(
+      msg.chat.id,
+      "🔍 Отправьте @юзернейм или ID пользователя для поиска.",
+      { reply_markup: backKb() },
+    );
+    return;
+  }
+  await ctx.db.clearState(msg.from!.id);
+  await ctx.tg.sendMessage(msg.chat.id, await findProfile(ctx, query), {
+    reply_markup: backKb(),
+  });
+}
+
 async function fsmRateComment(
   ctx: Ctx,
   msg: TgMessage,
@@ -348,6 +396,8 @@ export async function handleMessage(ctx: Ctx, msg: TgMessage): Promise<void> {
       return fsmDescription(ctx, msg, data);
     case ST_RATE_COMMENT:
       return fsmRateComment(ctx, msg, data);
+    case ST_SEARCH:
+      return fsmSearch(ctx, msg);
     default:
       return;
   }

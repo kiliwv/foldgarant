@@ -17,22 +17,28 @@ function kb(rows: InlineKeyboardButton[][]): InlineKeyboardMarkup {
 
 export function mainMenu(): InlineKeyboardMarkup {
   return kb([
-    [{ text: "🤝 Новая сделка", callback_data: "menu:newdeal", style: SUCCESS }],
     [
-      { text: "📂 Мои сделки", callback_data: "menu:mydeals", style: PRIMARY },
       { text: "👤 Профиль", callback_data: "menu:profile", style: PRIMARY },
+      { text: "🔍 Поиск", callback_data: "menu:search", style: PRIMARY },
     ],
-    [{ text: "ℹ️ Как это работает", callback_data: "menu:help" }],
+    [{ text: "🛡 Новая сделка", callback_data: "menu:newdeal", style: SUCCESS }],
+    [
+      { text: "📂 Мои сделки", callback_data: "menu:mydeals" },
+      { text: "ℹ️ Как это работает", callback_data: "menu:help" },
+    ],
   ]);
+}
+
+/** Кнопка возврата в главное меню. */
+export function backKb(): InlineKeyboardMarkup {
+  return kb([[{ text: "↩️ Назад", callback_data: "menu:back" }]]);
 }
 
 export function roleKb(): InlineKeyboardMarkup {
   return kb([
-    [
-      { text: "💼 Я продавец", callback_data: "role:seller", style: PRIMARY },
-      { text: "🛒 Я покупатель", callback_data: "role:buyer", style: PRIMARY },
-    ],
-    [{ text: "✖️ Отмена", callback_data: "newdeal:cancel", style: DANGER }],
+    [{ text: "🛒 Покупатель", callback_data: "role:buyer", style: SUCCESS }],
+    [{ text: "💼 Продавец", callback_data: "role:seller", style: DANGER }],
+    [{ text: "↩️ Назад", callback_data: "menu:back" }],
   ]);
 }
 

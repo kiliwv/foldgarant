@@ -5,6 +5,7 @@ import * as d from "../db";
 import { CryptoPayError } from "../cryptopay";
 import {
   assetKb,
+  backKb,
   buyerEscrowKb,
   cancelDealKb,
   confirmReleaseKb,
@@ -23,6 +24,8 @@ import {
   ST_NEWDEAL_CONFIRM,
   ST_NEWDEAL_ROLE,
   ST_RATE_COMMENT,
+  ST_SEARCH,
+  WELCOME,
   profileText,
   sendMyDeals,
   startNewDeal,
@@ -59,9 +62,16 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
 
   // --- Главное меню ---------------------------------------------------------
 
+  if (data === "menu:back") {
+    await ctx.db.clearState(user.id);
+    await editSource(ctx, cb, WELCOME, mainMenu());
+    await answer();
+    return;
+  }
+
   if (data === "menu:help") {
     if (cb.message) {
-      await ctx.tg.sendMessage(cb.message.chat.id, HELP_TEXT, { reply_markup: mainMenu() });
+      await ctx.tg.sendMessage(cb.message.chat.id, HELP_TEXT, { reply_markup: backKb() });
     }
     await answer();
     return;
@@ -69,7 +79,22 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
 
   if (data === "menu:profile") {
     if (cb.message) {
-      await ctx.tg.sendMessage(cb.message.chat.id, await profileText(ctx, user.id));
+      await ctx.tg.sendMessage(cb.message.chat.id, await profileText(ctx, user.id), {
+        reply_markup: backKb(),
+      });
+    }
+    await answer();
+    return;
+  }
+
+  if (data === "menu:search") {
+    await ctx.db.setState(user.id, ST_SEARCH, {});
+    if (cb.message) {
+      await ctx.tg.sendMessage(
+        cb.message.chat.id,
+        "🔍 Введите @юзернейм или ID пользователя для поиска.",
+        { reply_markup: backKb() },
+      );
     }
     await answer();
     return;
