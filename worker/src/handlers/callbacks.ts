@@ -132,8 +132,21 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
       return;
     }
     const role = data.split(":")[1];
-    await ctx.db.setState(user.id, ST_NEWDEAL_ASSET, { ...fsm, role });
-    await editSource(ctx, cb, "💱 Выберите валюту сделки:", assetKb(ctx.cfg.assets));
+    if (ctx.cfg.assets.length === 1) {
+      // Валюта одна — шаг выбора не нужен, сразу просим сумму.
+      const asset = ctx.cfg.assets[0];
+      await ctx.db.setState(user.id, ST_NEWDEAL_AMOUNT, { ...fsm, role, asset });
+      await editSource(
+        ctx,
+        cb,
+        `💰 Введите сумму сделки в <b>${asset}</b>\n\n` +
+          `Минимум: ${fmtAmount(ctx.cfg.minAmount)} ${asset}\n` +
+          "Пример: <code>50</code> или <code>12.5</code>",
+      );
+    } else {
+      await ctx.db.setState(user.id, ST_NEWDEAL_ASSET, { ...fsm, role });
+      await editSource(ctx, cb, "💱 Выберите валюту сделки:", assetKb(ctx.cfg.assets));
+    }
     await answer();
     return;
   }
