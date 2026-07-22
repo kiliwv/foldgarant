@@ -1,0 +1,20 @@
+{
+  "name": "foldgarant-worker",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Foldgarant — Telegram гарант-бот на Cloudflare Workers",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "db:create": "wrangler d1 create foldgarant",
+    "db:schema": "wrangler d1 execute foldgarant --remote --file=./schema.sql",
+    "db:schema:local": "wrangler d1 execute foldgarant --local --file=./schema.sql",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260721.1",
+    "typescript": "^5.5.0",
+    "wrangler": "^4.0.0"
+  }
+}
