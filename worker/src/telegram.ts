@@ -96,4 +96,13 @@ export class Telegram {
   setMyCommands(commands: { command: string; description: string }[]) {
     return this.call("setMyCommands", { commands });
   }
+
+  /** Скачивает файл (например, фото) с серверов Telegram. */
+  async downloadFile(fileId: string): Promise<ArrayBuffer> {
+    const file = await this.call<{ file_path?: string }>("getFile", { file_id: fileId });
+    if (!file.file_path) throw new Error("getFile вернул пустой file_path");
+    const resp = await fetch(`https://api.telegram.org/file/bot${this.token}/${file.file_path}`);
+    if (!resp.ok) throw new Error(`Не удалось скачать файл: HTTP ${resp.status}`);
+    return resp.arrayBuffer();
+  }
 }
