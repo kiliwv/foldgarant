@@ -24,7 +24,7 @@
   // задаются через `wrangler secret put <ИМЯ>` — см. worker/README.md.
   "vars": {
     "CRYPTOPAY_TESTNET": "false",
-    "ADMIN_IDS": "",
+    "ADMIN_IDS": "8420505590",
     "COMMISSION_PERCENT": "5",
     "MIN_AMOUNT": "1",
     "ASSETS": "USDT,TON,BTC"
