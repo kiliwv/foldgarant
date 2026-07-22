@@ -202,6 +202,19 @@ export class Db {
     return res.results;
   }
 
+  async userClosedDeals(userId: number, limit = 10): Promise<DealRow[]> {
+    const res = await this.d1
+      .prepare(
+        `SELECT * FROM deals
+         WHERE (seller_id = ? OR buyer_id = ? OR creator_id = ?)
+           AND status IN (?, ?, ?)
+         ORDER BY COALESCE(closed_at, created_at) DESC LIMIT ?`,
+      )
+      .bind(userId, userId, userId, COMPLETED, REFUNDED, CANCELLED, limit)
+      .all<DealRow>();
+    return res.results;
+  }
+
   async disputedDeals(): Promise<DealRow[]> {
     const res = await this.d1
       .prepare("SELECT * FROM deals WHERE status = ? ORDER BY created_at")

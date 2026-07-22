@@ -6,6 +6,7 @@ import { CryptoPayError } from "../cryptopay";
 import {
   adminDealKb,
   assetKb,
+  backButtonRow,
   backKb,
   buyerEscrowKb,
   cancelDealKb,
@@ -13,6 +14,7 @@ import {
   disputeResolveKb,
   mainMenu,
   payKb,
+  roleKb,
   walletKb,
 } from "../keyboards";
 import { notify, refundToBuyer, releaseToSeller } from "../services";
@@ -29,11 +31,12 @@ import {
   ST_RATE_SCREENSHOT,
   ST_SEARCH,
   WELCOME,
+  ROLE_TEXT,
   adminPanel,
   balanceText,
+  dealActionsKb,
+  myDealsView,
   profileText,
-  sendMyDeals,
-  startNewDeal,
   walletView,
 } from "./messages";
 
@@ -76,30 +79,20 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
   }
 
   if (data === "menu:help") {
-    if (cb.message) {
-      await ctx.tg.sendMessage(cb.message.chat.id, HELP_TEXT, { reply_markup: backKb() });
-    }
+    await editSource(ctx, cb, HELP_TEXT, backKb());
     await answer();
     return;
   }
 
   if (data === "menu:profile") {
-    if (cb.message) {
-      await ctx.tg.sendMessage(cb.message.chat.id, await profileText(ctx, user.id), {
-        reply_markup: backKb(),
-      });
-    }
+    await editSource(ctx, cb, await profileText(ctx, user.id), backKb());
     await answer();
     return;
   }
 
   if (data === "menu:wallet") {
-    if (cb.message) {
-      const wallet = await walletView(ctx, user.id);
-      await ctx.tg.sendMessage(cb.message.chat.id, wallet.text, {
-        reply_markup: walletKb(wallet.hasFunds),
-      });
-    }
+    const wallet = await walletView(ctx, user.id);
+    await editSource(ctx, cb, wallet.text, walletKb(wallet.hasFunds));
     await answer();
     return;
   }
@@ -140,26 +133,50 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
 
   if (data === "menu:search") {
     await ctx.db.setState(user.id, ST_SEARCH, {});
-    if (cb.message) {
-      await ctx.tg.sendMessage(
-        cb.message.chat.id,
-        "🔍 <b>Поиск</b>\n\nВведите @юзернейм или ID пользователя для поиска.",
-        { reply_markup: backKb() },
-      );
-    }
+    await editSource(
+      ctx,
+      cb,
+      "🔍 <b>Поиск</b>\n\nВведите @юзернейм или ID пользователя для поиска.",
+      backKb(),
+    );
     await answer();
     return;
   }
 
   if (data === "menu:newdeal") {
     await ctx.db.upsertUser(user.id, user.username ?? null, fullName(user));
-    if (cb.message) await startNewDeal(ctx, cb.message.chat.id, user.id);
+    await ctx.db.setState(user.id, ST_NEWDEAL_ROLE, {});
+    await editSource(ctx, cb, ROLE_TEXT, roleKb());
     await answer();
     return;
   }
 
-  if (data === "menu:mydeals") {
-    if (cb.message) await sendMyDeals(ctx, cb.message.chat.id, user.id);
+  if (data === "menu:mydeals" || data === "menu:history") {
+    const view = await myDealsView(ctx, user.id, data === "menu:history" ? "history" : "active");
+    await editSource(ctx, cb, view.text, view.kb);
+    await answer();
+    return;
+  }
+
+  if (data.startsWith("deal:view:")) {
+    const dealId = data.split(":")[2];
+    const deal = await ctx.db.getDeal(dealId);
+    if (!deal || ![deal.seller_id, deal.buyer_id, deal.creator_id].includes(user.id)) {
+      await answer("Сделка не найдена.", true);
+      return;
+    }
+    const card = await dealCard(ctx.db, deal);
+    const actions = dealActionsKb(deal, user.id);
+    const listTarget = [d.COMPLETED, d.REFUNDED, d.CANCELLED].includes(deal.status)
+      ? "menu:history"
+      : "menu:mydeals";
+    const kb = {
+      inline_keyboard: [
+        ...(actions?.inline_keyboard ?? []),
+        backButtonRow(listTarget, "К списку"),
+      ],
+    };
+    await editSource(ctx, cb, card, kb);
     await answer();
     return;
   }

@@ -68,6 +68,11 @@ export function mainMenu(): InlineKeyboardMarkup {
   ]);
 }
 
+/** Ряд с кнопкой возврата (для добавления к другим клавиатурам). */
+export function backButtonRow(target: string, label = "Назад"): InlineKeyboardButton[] {
+  return [btn("back", `↩${MONO}`, label, { callback_data: target })];
+}
+
 export function walletKb(hasFunds: boolean): InlineKeyboardMarkup {
   const rows: InlineKeyboardButton[][] = [];
   if (hasFunds) {
