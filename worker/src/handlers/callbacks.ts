@@ -4,6 +4,7 @@ import type { Ctx } from "../ctx";
 import * as d from "../db";
 import { CryptoPayError } from "../cryptopay";
 import {
+  adminDealKb,
   assetKb,
   backKb,
   buyerEscrowKb,
@@ -26,6 +27,8 @@ import {
   ST_RATE_COMMENT,
   ST_SEARCH,
   WELCOME,
+  adminPanel,
+  balanceText,
   profileText,
   sendMyDeals,
   startNewDeal,
@@ -486,6 +489,105 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
         `(до 300 символов) или пропустите.`,
       { inline_keyboard: [[{ text: "⏭ Пропустить", callback_data: "rate:skip_comment" }]] },
     );
+    await answer();
+    return;
+  }
+
+  // --- Админ-панель ----------------------------------------------------------
+
+  if (data === "adm:panel" || data.startsWith("adm:")) {
+    if (!ctx.cfg.adminIds.includes(user.id)) {
+      await answer("Только для администраторов.", true);
+      return;
+    }
+
+    if (data === "adm:panel") {
+      const panel = await adminPanel(ctx);
+      await editSource(ctx, cb, panel.text, panel.kb);
+      await answer("Обновлено");
+      return;
+    }
+
+    if (data === "adm:balance") {
+      if (cb.message) {
+        await ctx.tg.sendMessage(cb.message.chat.id, await balanceText(ctx));
+      }
+      await answer();
+      return;
+    }
+
+    if (data.startsWith("adm:list:")) {
+      const status = data.split(":")[2];
+      if (![d.DISPUTED, d.PAID, d.WAITING_PAYMENT, d.WAITING_PARTY].includes(status)) {
+        await answer();
+        return;
+      }
+      const deals = await ctx.db.dealsByStatus(status, 10);
+      if (!deals.length) {
+        await answer("Таких сделок нет.", true);
+        return;
+      }
+      if (cb.message) {
+        for (const deal of deals) {
+          const card = await dealCard(ctx.db, deal);
+          await ctx.tg.sendMessage(cb.message.chat.id, card, {
+            reply_markup: adminDealKb(deal.id, deal.status),
+          });
+        }
+      }
+      await answer(`Показано: ${deals.length}`);
+      return;
+    }
+
+    if (data.startsWith("adm:release:") || data.startsWith("adm:refund:")) {
+      const [, action, dealId] = data.split(":");
+      const deal = await ctx.db.getDeal(dealId);
+      if (!deal || (deal.status !== d.PAID && deal.status !== d.DISPUTED)) {
+        await answer("Сделка уже закрыта или не оплачена.", true);
+        return;
+      }
+      await editSource(
+        ctx,
+        cb,
+        action === "release"
+          ? `⏳ Выплачиваю средства продавцу по сделке #${dealId}...`
+          : `⏳ Возвращаю средства покупателю по сделке #${dealId}...`,
+      );
+      const ok =
+        action === "release"
+          ? await releaseToSeller(ctx, deal, "admin")
+          : await refundToBuyer(ctx, deal, "admin");
+      const result =
+        action === "release"
+          ? ok
+            ? "✅ выплачены продавцу"
+            : "🚨 ОШИБКА выплаты (детали в уведомлении)"
+          : ok
+            ? "↩️ возвращены покупателю"
+            : "🚨 ОШИБКА возврата (детали в уведомлении)";
+      await editSource(ctx, cb, `⚖️ Сделка #${dealId}: средства ${result}.`);
+      await answer();
+      return;
+    }
+
+    if (data.startsWith("adm:cancel:")) {
+      const dealId = data.split(":")[2];
+      const deal = await ctx.db.getDeal(dealId);
+      if (!deal || (deal.status !== d.WAITING_PARTY && deal.status !== d.WAITING_PAYMENT)) {
+        await answer("Эту сделку нельзя отменить (уже оплачена или закрыта).", true);
+        return;
+      }
+      await ctx.db.setStatus(dealId, d.CANCELLED);
+      await editSource(ctx, cb, `❌ Сделка #${dealId} отменена администратором.`);
+      const others = new Set([deal.seller_id, deal.buyer_id, deal.creator_id]);
+      others.delete(null);
+      for (const uid of others) {
+        await notify(ctx, uid, `❌ Сделка #${dealId} отменена администратором.`);
+      }
+      await answer();
+      return;
+    }
+
     await answer();
     return;
   }

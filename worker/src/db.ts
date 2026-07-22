@@ -178,6 +178,23 @@ export class Db {
     return res.results;
   }
 
+  async countsByStatus(): Promise<Record<string, number>> {
+    const res = await this.d1
+      .prepare("SELECT status, COUNT(*) AS cnt FROM deals GROUP BY status")
+      .all<{ status: string; cnt: number }>();
+    const out: Record<string, number> = {};
+    for (const row of res.results) out[row.status] = row.cnt;
+    return out;
+  }
+
+  async dealsByStatus(status: string, limit = 10): Promise<DealRow[]> {
+    const res = await this.d1
+      .prepare("SELECT * FROM deals WHERE status = ? ORDER BY created_at LIMIT ?")
+      .bind(status, limit)
+      .all<DealRow>();
+    return res.results;
+  }
+
   async disputedDeals(): Promise<DealRow[]> {
     const res = await this.d1
       .prepare("SELECT * FROM deals WHERE status = ? ORDER BY created_at")

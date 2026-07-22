@@ -4,6 +4,7 @@
 import type { Ctx } from "../ctx";
 import * as d from "../db";
 import {
+  adminPanelKb,
   backKb,
   buyerEscrowKb,
   cancelDealKb,
@@ -218,7 +219,7 @@ async function cmdDisputes(ctx: Ctx, msg: TgMessage): Promise<void> {
   }
 }
 
-async function cmdBalance(ctx: Ctx, msg: TgMessage): Promise<void> {
+export async function balanceText(ctx: Ctx): Promise<string> {
   const balances = await ctx.cp.getBalance();
   const lines = ["💰 <b>Баланс приложения Crypto Pay:</b>"];
   for (const b of balances) {
@@ -227,7 +228,36 @@ async function cmdBalance(ctx: Ctx, msg: TgMessage): Promise<void> {
       lines.push(`├ ${b.currency_code}: ${fmtAmount(available)}`);
     }
   }
-  await ctx.tg.sendMessage(msg.chat.id, lines.join("\n"));
+  return lines.join("\n");
+}
+
+async function cmdBalance(ctx: Ctx, msg: TgMessage): Promise<void> {
+  await ctx.tg.sendMessage(msg.chat.id, await balanceText(ctx));
+}
+
+export async function adminPanel(
+  ctx: Ctx,
+): Promise<{ text: string; kb: ReturnType<typeof adminPanelKb> }> {
+  const counts = await ctx.db.countsByStatus();
+  const n = (s: string) => counts[s] ?? 0;
+  const text =
+    "🛠 <b>Админ-панель</b>\n\n" +
+    "Проблемные сделки:\n" +
+    `⚠️ Споры: <b>${n(d.DISPUTED)}</b>\n` +
+    `🔒 В холде (деньги у гаранта): <b>${n(d.PAID)}</b>\n\n` +
+    "Активные:\n" +
+    `💳 Ждут оплату: ${n(d.WAITING_PAYMENT)}\n` +
+    `⏳ Ждут второго участника: ${n(d.WAITING_PARTY)}\n\n` +
+    "Закрытые:\n" +
+    `✅ Завершено: ${n(d.COMPLETED)} · ↩️ Возвраты: ${n(d.REFUNDED)} · ` +
+    `❌ Отменено: ${n(d.CANCELLED)}`;
+  const kb = adminPanelKb({
+    disputed: n(d.DISPUTED),
+    paid: n(d.PAID),
+    waitingPayment: n(d.WAITING_PAYMENT),
+    waitingParty: n(d.WAITING_PARTY),
+  });
+  return { text, kb };
 }
 
 /** Тест вариантов разметки цитат — чтобы подобрать вид без цветной полоски. */
@@ -468,6 +498,12 @@ export async function handleMessage(ctx: Ctx, msg: TgMessage): Promise<void> {
         return;
       case "/whois":
         return cmdWhois(ctx, msg);
+      case "/admin":
+        if (isAdmin(ctx, user.id)) {
+          const panel = await adminPanel(ctx);
+          await ctx.tg.sendMessage(msg.chat.id, panel.text, { reply_markup: panel.kb });
+        }
+        return;
       case "/disputes":
         if (isAdmin(ctx, user.id)) return cmdDisputes(ctx, msg);
         return;
