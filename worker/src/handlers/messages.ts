@@ -114,17 +114,24 @@ export async function myDealsView(
 
   const title = mode === "active" ? "📂 <b>Мои сделки</b>" : "🗂 <b>История сделок</b>";
   const empty =
-    mode === "active" ? "У вас нет активных сделок." : "История пока пуста.";
+    mode === "active"
+      ? "У вас нет активных сделок."
+      : "История пока пуста. Сюда попадают успешные сделки и возвраты.";
   const text = deals.length ? `${title}\n\nВыберите сделку:` : `${title}\n\n${empty}`;
 
-  const rows: InlineKeyboardMarkup["inline_keyboard"] = deals.map((deal) => [
-    dealListBtn(
-      deal.status,
-      STATUS_EMOJI[deal.status] ?? "🧾",
-      `#${deal.id} · ${fmtAmount(deal.amount)} ${deal.asset}`,
-      `deal:view:${deal.id}`,
-    ),
-  ]);
+  const rows: InlineKeyboardMarkup["inline_keyboard"] = deals.map((deal) => {
+    let label = `#${deal.id} · ${fmtAmount(deal.amount)} ${deal.asset}`;
+    if (mode === "history") {
+      const dt = new Date(deal.closed_at ?? deal.created_at);
+      const date = `${String(dt.getUTCDate()).padStart(2, "0")}.${String(
+        dt.getUTCMonth() + 1,
+      ).padStart(2, "0")}.${String(dt.getUTCFullYear()).slice(2)}`;
+      label += ` · ${date}`;
+    }
+    return [
+      dealListBtn(deal.status, STATUS_EMOJI[deal.status] ?? "🧾", label, `deal:view:${deal.id}`),
+    ];
+  });
   rows.push([
     mode === "active"
       ? listToggleBtn("История сделок", "menu:history")
