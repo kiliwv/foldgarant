@@ -234,6 +234,26 @@ async function cmdBalance(ctx: Ctx, msg: TgMessage): Promise<void> {
   await ctx.tg.sendMessage(msg.chat.id, lines.join("\n"));
 }
 
+/** Показывает ID кастомных эмодзи из сообщения (для icon_custom_emoji_id). */
+async function cmdEmojiId(ctx: Ctx, msg: TgMessage): Promise<void> {
+  const ids = (msg.entities ?? [])
+    .filter((e) => e.type === "custom_emoji" && e.custom_emoji_id)
+    .map((e) => e.custom_emoji_id!);
+  if (!ids.length) {
+    await ctx.tg.sendMessage(
+      msg.chat.id,
+      "Отправьте команду вместе с эмодзи из паков в одном сообщении:\n" +
+        "<code>/emojiid</code> 🙂🙂🙂 (эмодзи должны быть премиум-эмодзи из паков)",
+    );
+    return;
+  }
+  const lines = ids.map((id, i) => `${i + 1}. <code>${id}</code>`);
+  await ctx.tg.sendMessage(
+    msg.chat.id,
+    "🆔 <b>ID кастомных эмодзи:</b>\n" + lines.join("\n"),
+  );
+}
+
 async function cmdBanUnban(ctx: Ctx, msg: TgMessage, ban: boolean): Promise<void> {
   const parts = (msg.text ?? "").split(/\s+/).filter(Boolean);
   const cmd = ban ? "/ban" : "/unban";
@@ -380,6 +400,9 @@ export async function handleMessage(ctx: Ctx, msg: TgMessage): Promise<void> {
         return;
       case "/balance":
         if (isAdmin(ctx, user.id)) return cmdBalance(ctx, msg);
+        return;
+      case "/emojiid":
+        if (isAdmin(ctx, user.id)) return cmdEmojiId(ctx, msg);
         return;
       case "/ban":
         if (isAdmin(ctx, user.id)) return cmdBanUnban(ctx, msg, true);
