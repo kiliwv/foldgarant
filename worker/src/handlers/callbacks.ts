@@ -17,7 +17,13 @@ import {
   roleKb,
   walletKb,
 } from "../keyboards";
-import { notify, refundToBuyer, releaseToSeller, updateChatCard } from "../services";
+import {
+  markDealPaid,
+  notify,
+  refundToBuyer,
+  releaseToSeller,
+  updateChatCard,
+} from "../services";
 import { round8 } from "../utils";
 import type { InlineKeyboardMarkup, TgCallbackQuery } from "../types";
 import { fullName } from "../types";
@@ -674,6 +680,57 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
             ? "↩️ возвращены покупателю"
             : "🚨 ОШИБКА возврата (детали в уведомлении)";
       await editSource(ctx, cb, `⚖️ Сделка #${dealId}: средства ${result}.`);
+      await answer();
+      return;
+    }
+
+    if (data.startsWith("adm:checkpay:")) {
+      const dealId = data.split(":")[2];
+      const deal = await ctx.db.getDeal(dealId);
+      if (!deal || deal.status !== d.WAITING_PAYMENT) {
+        await answer("Сделка не ждёт оплату.", true);
+        return;
+      }
+      if (!deal.invoice_id) {
+        await answer("У сделки ещё нет счёта — второй участник не присоединился.", true);
+        return;
+      }
+      const invoices = await ctx.cp.getInvoices([deal.invoice_id]);
+      const invoice = invoices[0];
+      if (invoice?.status === "paid") {
+        await markDealPaid(ctx, dealId);
+        await editSource(
+          ctx,
+          cb,
+          `✅ Оплата по сделке #${dealId} найдена и подтверждена — ` +
+            "средства в холде, стороны уведомлены.",
+        );
+        await answer();
+      } else {
+        await answer(
+          `Счёт не оплачен (статус: ${invoice?.status ?? "не найден"}).`,
+          true,
+        );
+      }
+      return;
+    }
+
+    if (data.startsWith("adm:forcepay:")) {
+      const dealId = data.split(":")[2];
+      const deal = await ctx.db.getDeal(dealId);
+      if (!deal || deal.status !== d.WAITING_PAYMENT) {
+        await answer("Сделка не ждёт оплату.", true);
+        return;
+      }
+      await markDealPaid(ctx, dealId);
+      await editSource(
+        ctx,
+        cb,
+        `✅ Оплата по сделке #${dealId} подтверждена вручную — средства помечены ` +
+          "как в холде, стороны уведомлены.\n\n" +
+          "⚠️ Убедитесь, что деньги действительно получены: выплата продавцу " +
+          "пойдёт с баланса приложения Crypto Pay.",
+      );
       await answer();
       return;
     }
