@@ -223,6 +223,14 @@ export class Db {
     return (res.meta.changes ?? 0) > 0;
   }
 
+  async hasRating(dealId: string, fromUser: number): Promise<boolean> {
+    const row = await this.d1
+      .prepare("SELECT 1 AS x FROM ratings WHERE deal_id = ? AND from_user = ?")
+      .bind(dealId, fromUser)
+      .first();
+    return row !== null;
+  }
+
   async setRatingComment(dealId: string, fromUser: number, comment: string): Promise<void> {
     await this.d1
       .prepare("UPDATE ratings SET comment = ? WHERE deal_id = ? AND from_user = ?")

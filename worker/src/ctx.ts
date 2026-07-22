@@ -10,6 +10,7 @@ export interface Ctx {
   db: Db;
   cp: CryptoPay;
   cfg: Config;
+  ai?: Ai;
 }
 
 export function makeCtx(env: Env): Ctx {
@@ -19,5 +20,6 @@ export function makeCtx(env: Env): Ctx {
     db: new Db(env.DB),
     cp: new CryptoPay(env.CRYPTOPAY_TOKEN, cfg.cryptopayTestnet),
     cfg,
+    ai: env.AI,
   };
 }

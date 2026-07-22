@@ -24,7 +24,7 @@ import {
   ST_NEWDEAL_AMOUNT,
   ST_NEWDEAL_CONFIRM,
   ST_NEWDEAL_ROLE,
-  ST_RATE_COMMENT,
+  ST_RATE_SCREENSHOT,
   ST_SEARCH,
   WELCOME,
   adminPanel,
@@ -471,23 +471,24 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
       await answer("Вы не участник этой сделки.", true);
       return;
     }
-
-    const toUser = user.id === deal.buyer_id ? deal.seller_id! : deal.buyer_id!;
-    const created = await ctx.db.addRating(dealId, user.id, toUser, score);
-    if (!created) {
+    if (await ctx.db.hasRating(dealId, user.id)) {
       await answer("Вы уже оценили эту сделку.", true);
       return;
     }
 
     const emoji = score > 0 ? "👍" : "👎";
-    await ctx.db.setState(user.id, ST_RATE_COMMENT, { rate_deal_id: dealId });
+    await ctx.db.setState(user.id, ST_RATE_SCREENSHOT, {
+      rate_deal_id: dealId,
+      rate_score: score,
+    });
     await editSource(
       ctx,
       cb,
-      `${emoji} Оценка сохранена!\n\n` +
-        "💬 Хотите оставить текстовый отзыв? Отправьте его сообщением " +
-        `(до 300 символов) или пропустите.`,
-      { inline_keyboard: [[{ text: "⏭ Пропустить", callback_data: "rate:skip_comment" }]] },
+      `${emoji} Оценка принята — остался один шаг.\n\n` +
+        "📸 Пришлите <b>скриншот вашей переписки</b> по этой сделке (фото). " +
+        "Оценка засчитается после автоматической проверки — это защита " +
+        "репутации от накруток.",
+      backKb(),
     );
     await answer();
     return;

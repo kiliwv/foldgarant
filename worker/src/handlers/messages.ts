@@ -14,6 +14,7 @@ import {
   payKb,
   roleKb,
   sellerEscrowKb,
+  skipCommentKb,
   disputeResolveKb,
 } from "../keyboards";
 import { fmtAmount, dealCard, escapeHtml, reputationLine, round8 } from "../utils";
@@ -29,6 +30,7 @@ export const ST_NEWDEAL_ASSET = "newdeal:asset";
 export const ST_NEWDEAL_AMOUNT = "newdeal:amount";
 export const ST_NEWDEAL_DESCRIPTION = "newdeal:description";
 export const ST_NEWDEAL_CONFIRM = "newdeal:confirm";
+export const ST_RATE_SCREENSHOT = "rate:waiting_screenshot";
 export const ST_RATE_COMMENT = "rate:waiting_comment";
 export const ST_SEARCH = "search:query";
 
@@ -447,6 +449,96 @@ async function fsmSearch(ctx: Ctx, msg: TgMessage): Promise<void> {
   });
 }
 
+/**
+ * ИИ-проверка скриншота переписки (Workers AI, модель со зрением).
+ * При недоступности ИИ пропускаем проверку, чтобы не блокировать отзывы.
+ */
+async function checkScreenshot(
+  ctx: Ctx,
+  fileId: string,
+): Promise<{ ok: boolean; reason: string }> {
+  if (!ctx.ai) return { ok: true, reason: "ИИ не подключён" };
+  const buf = await ctx.tg.downloadFile(fileId);
+  const res = (await ctx.ai.run("@cf/llava-hf/llava-1.5-7b-hf", {
+    image: [...new Uint8Array(buf)],
+    prompt:
+      "You are an anti-fraud reviewer for an escrow service. Look at the image. " +
+      "Is it a genuine screenshot of a messenger chat conversation (Telegram, " +
+      "WhatsApp etc.) between two people discussing a deal, payment, goods or a " +
+      "service? Answer strictly YES or NO, then one short reason. Answer NO if " +
+      "the image is not a chat screenshot, is a random photo, a meme, a blank " +
+      "image, or looks fabricated.",
+    max_tokens: 80,
+  })) as { description?: string };
+  const text = (res.description ?? "").trim();
+  return { ok: /\byes\b/i.test(text), reason: text };
+}
+
+async function fsmRateScreenshot(
+  ctx: Ctx,
+  msg: TgMessage,
+  data: Record<string, unknown>,
+): Promise<void> {
+  const dealId = data.rate_deal_id as string;
+  const score = data.rate_score as number;
+  const deal = await ctx.db.getDeal(dealId);
+  if (!deal) {
+    await ctx.db.clearState(msg.from!.id);
+    return;
+  }
+
+  const photos = msg.photo ?? [];
+  if (!photos.length) {
+    await ctx.tg.sendMessage(
+      msg.chat.id,
+      "📸 Чтобы оценка засчиталась, пришлите <b>скриншот переписки</b> " +
+        "по этой сделке (фото, не файлом).",
+      { reply_markup: backKb() },
+    );
+    return;
+  }
+
+  await ctx.tg.sendMessage(msg.chat.id, "⏳ Проверяю скриншот...");
+  // Средний размер фото — достаточно для проверки и быстрее скачивается
+  const photo = photos[Math.min(photos.length - 1, 2)];
+  let verdict = { ok: true, reason: "" };
+  try {
+    verdict = await checkScreenshot(ctx, photo.file_id);
+  } catch (e) {
+    console.error("Ошибка ИИ-проверки скриншота", e);
+  }
+
+  if (!verdict.ok) {
+    await ctx.tg.sendMessage(
+      msg.chat.id,
+      "❌ Скриншот не прошёл проверку: не похоже на переписку по сделке.\n\n" +
+        "Пришлите настоящий скриншот вашего диалога с контрагентом " +
+        "(видно сообщения обеих сторон).",
+      { reply_markup: backKb() },
+    );
+    return;
+  }
+
+  const user = msg.from!;
+  const toUser = user.id === deal.buyer_id ? deal.seller_id! : deal.buyer_id!;
+  const created = await ctx.db.addRating(dealId, user.id, toUser, score);
+  if (!created) {
+    await ctx.db.clearState(user.id);
+    await ctx.tg.sendMessage(msg.chat.id, "Вы уже оценили эту сделку.");
+    return;
+  }
+
+  const emoji = score > 0 ? "👍" : "👎";
+  await ctx.db.setState(user.id, ST_RATE_COMMENT, { rate_deal_id: dealId });
+  await ctx.tg.sendMessage(
+    msg.chat.id,
+    `${emoji} Скриншот принят, оценка засчитана!\n\n` +
+      `💬 Хотите оставить текстовый отзыв? Отправьте его сообщением ` +
+      `(до ${MAX_COMMENT} символов) или пропустите.`,
+    { reply_markup: skipCommentKb() },
+  );
+}
+
 async function fsmRateComment(
   ctx: Ctx,
   msg: TgMessage,
@@ -478,6 +570,13 @@ export async function handleMessage(ctx: Ctx, msg: TgMessage): Promise<void> {
   const user = msg.from;
   if (!user || msg.chat.type !== "private") return;
   const text = msg.text ?? "";
+
+  // Фото обрабатываем только на шаге скриншота для отзыва
+  if (msg.photo?.length) {
+    const { state, data } = await ctx.db.getState(user.id);
+    if (state === ST_RATE_SCREENSHOT) return fsmRateScreenshot(ctx, msg, data);
+    return;
+  }
 
   if (text.startsWith("/")) {
     const [rawCmd, ...rest] = text.split(/\s+/);
@@ -539,6 +638,8 @@ export async function handleMessage(ctx: Ctx, msg: TgMessage): Promise<void> {
       return fsmAmount(ctx, msg, data);
     case ST_NEWDEAL_DESCRIPTION:
       return fsmDescription(ctx, msg, data);
+    case ST_RATE_SCREENSHOT:
+      return fsmRateScreenshot(ctx, msg, data);
     case ST_RATE_COMMENT:
       return fsmRateComment(ctx, msg, data);
     case ST_SEARCH:

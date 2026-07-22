@@ -19,12 +19,21 @@ export interface TgMessageEntity {
   custom_emoji_id?: string;
 }
 
+export interface TgPhotoSize {
+  file_id: string;
+  width: number;
+  height: number;
+  file_size?: number;
+}
+
 export interface TgMessage {
   message_id: number;
   from?: TgUser;
   chat: TgChat;
   text?: string;
   entities?: TgMessageEntity[];
+  photo?: TgPhotoSize[];
+  caption?: string;
 }
 
 export interface TgCallbackQuery {

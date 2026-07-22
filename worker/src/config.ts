@@ -1,5 +1,6 @@
 export interface Env {
   DB: D1Database;
+  AI?: Ai;
   // Секреты (wrangler secret put ...)
   BOT_TOKEN: string;
   CRYPTOPAY_TOKEN: string;
