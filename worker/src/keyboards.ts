@@ -80,6 +80,14 @@ function btn(
   return { text: `${emoji} ${label}`, ...rest } as InlineKeyboardButton;
 }
 
+/**
+ * Кнопка для inline-сообщений (живая карточка в чате): на сообщениях «via bot»
+ * Telegram не показывает иконки из паков, поэтому эмодзи идёт текстом.
+ */
+function chatBtn(emoji: string, label: string, rest: Partial<InlineKeyboardButton>): InlineKeyboardButton {
+  return { text: `${emoji} ${label}`, ...rest } as InlineKeyboardButton;
+}
+
 export function mainMenu(): InlineKeyboardMarkup {
   return kb([
     [
@@ -145,7 +153,7 @@ export function confirmDealKb(): InlineKeyboardMarkup {
 export function joinDealKb(dealId: string): InlineKeyboardMarkup {
   return kb([
     [
-      btn("join", "🤝", "Присоединиться к сделке", {
+      chatBtn("🤝", "Присоединиться к сделке", {
         callback_data: `deal:join:${dealId}`,
         style: SUCCESS,
       }),
@@ -155,7 +163,7 @@ export function joinDealKb(dealId: string): InlineKeyboardMarkup {
 
 /** Заглушка для inline-сообщения, пока сделка создаётся. */
 export function processingKb(): InlineKeyboardMarkup {
-  return kb([[btn("processing", "⏳", "Создание сделки...", { callback_data: "noop" })]]);
+  return kb([[chatBtn("⏳", "Создание сделки...", { callback_data: "noop" })]]);
 }
 
 export function payKb(payUrl: string, dealId: string): InlineKeyboardMarkup {
@@ -295,29 +303,29 @@ export function chatCardKb(dealId: string, status: string): InlineKeyboardMarkup
   if (status === "waiting_payment") {
     return kb([
       [
-        btn("pay", "💳", "Оплатить через CryptoBot", {
+        chatBtn("💳", "Оплатить через CryptoBot", {
           callback_data: `deal:pay:${dealId}`,
           style: SUCCESS,
         }),
       ],
-      [btn("cancel", "✖️", "Отменить сделку", { callback_data: `deal:cancel:${dealId}`, style: DANGER })],
+      [chatBtn("✖️", "Отменить сделку", { callback_data: `deal:cancel:${dealId}`, style: DANGER })],
     ]);
   }
   if (status === "paid") {
     return kb([
       [
-        btn("check", "✅", "Я получил товар/услугу", {
+        chatBtn("✅", "Я получил товар/услугу", {
           callback_data: `deal:release:${dealId}`,
           style: SUCCESS,
         }),
       ],
       [
-        btn("back", "↩️", "Вернуть деньги покупателю", {
+        chatBtn("↩️", "Вернуть деньги покупателю", {
           callback_data: `deal:refund:${dealId}`,
           style: PRIMARY,
         }),
       ],
-      [btn("warn", "⚠️", "Открыть спор", { callback_data: `deal:dispute:${dealId}`, style: DANGER })],
+      [chatBtn("⚠️", "Открыть спор", { callback_data: `deal:dispute:${dealId}`, style: DANGER })],
     ]);
   }
   return undefined;
