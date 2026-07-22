@@ -262,6 +262,29 @@ const TEST_ICON_IDS: [string, string][] = [
   ["Продавец", "5983399041197675256"],
 ];
 
+/** Тест кастомных эмодзи в тексте сообщения (tg-emoji). */
+async function cmdTestText(ctx: Ctx, msg: TgMessage): Promise<void> {
+  const fallbacks = ["👤", "🔍", "🛡", "🗂", "ℹ️", "↩️", "🛒", "💼"];
+  const line = TEST_ICON_IDS.map(
+    ([, id], i) => `<tg-emoji emoji-id="${id}">${fallbacks[i]}</tg-emoji>`,
+  ).join(" ");
+  try {
+    await ctx.tg.sendMessage(
+      msg.chat.id,
+      "🧪 Тест эмодзи в тексте:\n\n" +
+        line +
+        "\n\nЕсли выше иконки из вашего пака — значит, текстовые эмодзи " +
+        "работают и их можно заменить во всех сообщениях. " +
+        "Если обычные эмодзи — Telegram требует Fragment-юзернейм для текста.",
+    );
+  } catch (e) {
+    await ctx.tg.sendMessage(
+      msg.chat.id,
+      "❌ Telegram отклонил кастомные эмодзи в тексте:\n<code>" + String(e) + "</code>",
+    );
+  }
+}
+
 /** Тест иконок из эмодзи-паков в кнопках (icon_custom_emoji_id). */
 async function cmdTestIcon(ctx: Ctx, msg: TgMessage): Promise<void> {
   const rows = TEST_ICON_IDS.map(([label, id], i) => [
@@ -459,6 +482,9 @@ export async function handleMessage(ctx: Ctx, msg: TgMessage): Promise<void> {
         return;
       case "/testicon":
         if (isAdmin(ctx, user.id)) return cmdTestIcon(ctx, msg);
+        return;
+      case "/testtext":
+        if (isAdmin(ctx, user.id)) return cmdTestText(ctx, msg);
         return;
       case "/ban":
         if (isAdmin(ctx, user.id)) return cmdBanUnban(ctx, msg, true);
