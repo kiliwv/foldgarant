@@ -269,6 +269,18 @@ export function adminDealKb(dealId: string, status: string): InlineKeyboardMarku
       ],
     ]);
   }
+  if (status === "waiting_payment") {
+    return kb([
+      [btn("search", "🔄", "Проверить оплату", { callback_data: `adm:checkpay:${dealId}` })],
+      [
+        btn("check", "✅", "Подтвердить оплату вручную", {
+          callback_data: `adm:forcepay:${dealId}`,
+          style: SUCCESS,
+        }),
+      ],
+      [btn("cancel", "✖️", "Отменить сделку", { callback_data: `adm:cancel:${dealId}`, style: DANGER })],
+    ]);
+  }
   return kb([
     [btn("cancel", "✖️", "Отменить сделку", { callback_data: `adm:cancel:${dealId}`, style: DANGER })],
   ]);
