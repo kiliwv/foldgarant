@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS deals (
     status       TEXT NOT NULL,
     invoice_id   INTEGER,
     pay_url      TEXT,
+    inline_msg_id TEXT,
     created_at   TEXT NOT NULL,
     closed_at    TEXT
 );
