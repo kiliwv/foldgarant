@@ -88,6 +88,15 @@ export class Db {
     return await this.d1.prepare("SELECT * FROM users WHERE id = ?").bind(userId).first<UserRow>();
   }
 
+  async getUserByUsername(username: string): Promise<UserRow | null> {
+    return await this.d1
+      .prepare(
+        "SELECT * FROM users WHERE username = ? COLLATE NOCASE ORDER BY created_at DESC LIMIT 1",
+      )
+      .bind(username)
+      .first<UserRow>();
+  }
+
   async setBanned(userId: number, banned: boolean): Promise<void> {
     await this.d1
       .prepare("UPDATE users SET is_banned = ? WHERE id = ?")
