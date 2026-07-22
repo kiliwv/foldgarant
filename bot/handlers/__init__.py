@@ -1,6 +1,6 @@
 from aiogram import Dispatcher
 
-from . import admin, deals, profile, ratings, start
+from . import admin, deals, inline, profile, ratings, start
 
 
 def setup_routers(dp: Dispatcher) -> None:
@@ -8,4 +8,5 @@ def setup_routers(dp: Dispatcher) -> None:
     dp.include_router(profile.router)
     dp.include_router(deals.router)
     dp.include_router(ratings.router)
+    dp.include_router(inline.router)
     dp.include_router(admin.router)

@@ -158,6 +158,23 @@ async def cb_confirm(callback: CallbackQuery, state: FSMContext, db: Database, b
 
 # --- Присоединение и оплата --------------------------------------------------
 
+async def _edit_source(callback: CallbackQuery, bot: Bot, text: str, reply_markup=None):
+    """Редактирует сообщение с кнопкой: обычное или inline (в чужом чате)."""
+    if callback.message is not None:
+        await callback.message.edit_text(text, reply_markup=reply_markup)
+    elif callback.inline_message_id:
+        await bot.edit_message_text(
+            text=text,
+            inline_message_id=callback.inline_message_id,
+            reply_markup=reply_markup,
+        )
+
+
+@router.callback_query(F.data == "noop")
+async def cb_noop(callback: CallbackQuery):
+    await callback.answer("⏳ Сделка ещё создаётся, попробуйте через секунду.")
+
+
 @router.callback_query(F.data.startswith("deal:join:"))
 async def cb_join(
     callback: CallbackQuery, db: Database, bot: Bot, cp: CryptoPay, config: Config
@@ -192,7 +209,6 @@ async def cb_join(
     await db.set_invoice(deal_id, invoice["invoice_id"], invoice["bot_invoice_url"])
     card = await deal_card(db, await db.get_deal(deal_id))
 
-    await callback.message.edit_text(f"🤝 Вы присоединились к сделке!\n\n{card}")
     await notify(
         bot, deal["creator_id"],
         f"🤝 Второй участник присоединился к сделке!\n\n{card}",
@@ -204,11 +220,29 @@ async def cb_join(
         "Оплатите через @CryptoBot — средства будут храниться у гаранта "
         "до подтверждения получения товара/услуги."
     )
-    await notify(
+    invoice_sent = await notify(
         bot, deal["buyer_id"], pay_text,
         reply_markup=pay_kb(invoice["bot_invoice_url"], deal_id),
     )
-    await callback.answer()
+
+    me = await bot.get_me()
+    text = f"🤝 Второй участник присоединился!\n\n{card}"
+    if invoice_sent:
+        text += "\n\n💳 Счёт на оплату отправлен покупателю в личные сообщения."
+    else:
+        text += (
+            f"\n\n⚠️ Покупатель, откройте @{me.username}, нажмите Start "
+            "и оплатите счёт в разделе /mydeals."
+        )
+    await _edit_source(callback, bot, text)
+
+    if not invoice_sent and user.id == deal["buyer_id"]:
+        await callback.answer(
+            f"Откройте @{me.username} и нажмите Start — там ждёт счёт на оплату (/mydeals).",
+            show_alert=True,
+        )
+    else:
+        await callback.answer("Вы присоединились к сделке!")
 
 
 # --- Отмена до оплаты ---------------------------------------------------------

@@ -18,13 +18,16 @@ def payout_amount(amount: float, commission_percent: float) -> float:
     return round(amount * (1 - commission_percent / 100), 8)
 
 
-async def notify(bot: Bot, user_id: int | None, text: str, **kwargs) -> None:
+async def notify(bot: Bot, user_id: int | None, text: str, **kwargs) -> bool:
+    """Отправляет личное сообщение. False — если пользователь не запускал бота."""
     if user_id is None:
-        return
+        return False
     try:
         await bot.send_message(user_id, text, **kwargs)
+        return True
     except Exception:
         logger.warning("Не удалось отправить сообщение пользователю %s", user_id)
+        return False
 
 
 async def ask_ratings(bot: Bot, deal) -> None:
