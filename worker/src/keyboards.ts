@@ -15,15 +15,19 @@ function kb(rows: InlineKeyboardButton[][]): InlineKeyboardMarkup {
   return { inline_keyboard: rows };
 }
 
+// U+FE0E — variation selector-15: рисует эмодзи монохромным глифом
+// в цвет текста кнопки (белый контур, как у ботов-референсов).
+const MONO = "︎";
+
 export function mainMenu(): InlineKeyboardMarkup {
   return kb([
     [
-      { text: "👤 Профиль", callback_data: "menu:profile", style: PRIMARY },
-      { text: "🔍 Поиск", callback_data: "menu:search", style: PRIMARY },
+      { text: `👤${MONO} Профиль`, callback_data: "menu:profile" },
+      { text: "🔍 Поиск", callback_data: "menu:search" },
     ],
-    [{ text: "🛡 Новая сделка", callback_data: "menu:newdeal", style: SUCCESS }],
+    [{ text: `🛡${MONO} Новая сделка`, callback_data: "menu:newdeal", style: SUCCESS }],
     [
-      { text: "📂 Мои сделки", callback_data: "menu:mydeals" },
+      { text: `🗂${MONO} Мои сделки`, callback_data: "menu:mydeals" },
       { text: "ℹ️ Как это работает", callback_data: "menu:help" },
     ],
   ]);
@@ -31,14 +35,14 @@ export function mainMenu(): InlineKeyboardMarkup {
 
 /** Кнопка возврата в главное меню. */
 export function backKb(): InlineKeyboardMarkup {
-  return kb([[{ text: "↩️ Назад", callback_data: "menu:back" }]]);
+  return kb([[{ text: `↩${MONO} Назад`, callback_data: "menu:back" }]]);
 }
 
 export function roleKb(): InlineKeyboardMarkup {
   return kb([
     [{ text: "🛒 Покупатель", callback_data: "role:buyer", style: SUCCESS }],
     [{ text: "💼 Продавец", callback_data: "role:seller", style: DANGER }],
-    [{ text: "↩️ Назад", callback_data: "menu:back" }],
+    [{ text: `↩${MONO} Назад`, callback_data: "menu:back" }],
   ]);
 }
 
@@ -109,7 +113,7 @@ export function sellerEscrowKb(dealId: string): InlineKeyboardMarkup {
 export function confirmReleaseKb(dealId: string): InlineKeyboardMarkup {
   return kb([
     [{ text: "✅ Да, подтверждаю", callback_data: `deal:release2:${dealId}`, style: SUCCESS }],
-    [{ text: "↩️ Назад", callback_data: `deal:back:${dealId}` }],
+    [{ text: `↩${MONO} Назад`, callback_data: `deal:back:${dealId}` }],
   ]);
 }
 
