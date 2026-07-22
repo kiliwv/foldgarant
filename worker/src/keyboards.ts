@@ -32,6 +32,13 @@ const ICONS: Record<string, string> = {
   back: "5875082500023258804",
   buyer: "5920344347152224466",
   seller: "5983399041197675256",
+  join: "5994750571041525522",
+  check: "5825794181183836432",
+  warn: "6028226658543082010",
+  cancel: "5778527486270770928",
+  pay: "5927169041595634481",
+  processing: "5900104897885376843",
+  money: "5974217466270716579",
 };
 
 function btn(
@@ -92,33 +99,43 @@ export function confirmDealKb(): InlineKeyboardMarkup {
 
 export function joinDealKb(dealId: string): InlineKeyboardMarkup {
   return kb([
-    [{ text: "🤝 Присоединиться к сделке", callback_data: `deal:join:${dealId}`, style: SUCCESS }],
+    [
+      btn("join", "🤝", "Присоединиться к сделке", {
+        callback_data: `deal:join:${dealId}`,
+        style: SUCCESS,
+      }),
+    ],
   ]);
 }
 
 /** Заглушка для inline-сообщения, пока сделка создаётся. */
 export function processingKb(): InlineKeyboardMarkup {
-  return kb([[{ text: "⏳ Создание сделки...", callback_data: "noop" }]]);
+  return kb([[btn("processing", "⏳", "Создание сделки...", { callback_data: "noop" })]]);
 }
 
 export function payKb(payUrl: string, dealId: string): InlineKeyboardMarkup {
   return kb([
-    [{ text: "💳 Оплатить через CryptoBot", url: payUrl, style: SUCCESS }],
-    [{ text: "✖️ Отменить сделку", callback_data: `deal:cancel:${dealId}`, style: DANGER }],
+    [btn("pay", "💳", "Оплатить через CryptoBot", { url: payUrl, style: SUCCESS })],
+    [btn("cancel", "✖️", "Отменить сделку", { callback_data: `deal:cancel:${dealId}`, style: DANGER })],
   ]);
 }
 
 export function cancelDealKb(dealId: string): InlineKeyboardMarkup {
   return kb([
-    [{ text: "✖️ Отменить сделку", callback_data: `deal:cancel:${dealId}`, style: DANGER }],
+    [btn("cancel", "✖️", "Отменить сделку", { callback_data: `deal:cancel:${dealId}`, style: DANGER })],
   ]);
 }
 
 /** Кнопки покупателя, когда деньги в холде. */
 export function buyerEscrowKb(dealId: string): InlineKeyboardMarkup {
   return kb([
-    [{ text: "✅ Я получил товар/услугу", callback_data: `deal:release:${dealId}`, style: SUCCESS }],
-    [{ text: "⚠️ Открыть спор", callback_data: `deal:dispute:${dealId}`, style: DANGER }],
+    [
+      btn("check", "✅", "Я получил товар/услугу", {
+        callback_data: `deal:release:${dealId}`,
+        style: SUCCESS,
+      }),
+    ],
+    [btn("warn", "⚠️", "Открыть спор", { callback_data: `deal:dispute:${dealId}`, style: DANGER })],
   ]);
 }
 
@@ -126,19 +143,23 @@ export function buyerEscrowKb(dealId: string): InlineKeyboardMarkup {
 export function sellerEscrowKb(dealId: string): InlineKeyboardMarkup {
   return kb([
     [
-      {
-        text: "↩️ Вернуть деньги покупателю",
+      btn("back", "↩️", "Вернуть деньги покупателю", {
         callback_data: `deal:refund:${dealId}`,
         style: PRIMARY,
-      },
+      }),
     ],
-    [{ text: "⚠️ Открыть спор", callback_data: `deal:dispute:${dealId}`, style: DANGER }],
+    [btn("warn", "⚠️", "Открыть спор", { callback_data: `deal:dispute:${dealId}`, style: DANGER })],
   ]);
 }
 
 export function confirmReleaseKb(dealId: string): InlineKeyboardMarkup {
   return kb([
-    [{ text: "✅ Да, подтверждаю", callback_data: `deal:release2:${dealId}`, style: SUCCESS }],
+    [
+      btn("check", "✅", "Да, подтверждаю", {
+        callback_data: `deal:release2:${dealId}`,
+        style: SUCCESS,
+      }),
+    ],
     [btn("back", `↩${MONO}`, "Назад", { callback_data: `deal:back:${dealId}` })],
   ]);
 }
@@ -158,7 +179,17 @@ export function skipCommentKb(): InlineKeyboardMarkup {
 
 export function disputeResolveKb(dealId: string): InlineKeyboardMarkup {
   return kb([
-    [{ text: "💸 Выплатить продавцу", callback_data: `resolve:release:${dealId}`, style: SUCCESS }],
-    [{ text: "↩️ Вернуть покупателю", callback_data: `resolve:refund:${dealId}`, style: DANGER }],
+    [
+      btn("money", "💸", "Выплатить продавцу", {
+        callback_data: `resolve:release:${dealId}`,
+        style: SUCCESS,
+      }),
+    ],
+    [
+      btn("back", "↩️", "Вернуть покупателю", {
+        callback_data: `resolve:refund:${dealId}`,
+        style: DANGER,
+      }),
+    ],
   ]);
 }
