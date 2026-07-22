@@ -46,12 +46,13 @@ export async function releaseToSeller(
 ): Promise<boolean> {
   const amount = payoutAmount(deal.amount, ctx.cfg.commissionPercent);
   try {
+    // Без comment: Crypto Pay запрещает комментарии к небольшим переводам
+    // (CANNOT_ATTACH_COMMENT), а стороны и так получают уведомление от бота.
     await ctx.cp.transfer({
       user_id: deal.seller_id!,
       asset: deal.asset,
       amount,
       spend_id: `payout_${deal.id}`,
-      comment: `Выплата по сделке #${deal.id}`,
     });
   } catch (e) {
     const name = e instanceof CryptoPayError ? e.errorName : String(e);
@@ -94,7 +95,6 @@ export async function refundToBuyer(
       asset: deal.asset,
       amount: deal.amount,
       spend_id: `refund_${deal.id}`,
-      comment: `Возврат по сделке #${deal.id}`,
     });
   } catch (e) {
     const name = e instanceof CryptoPayError ? e.errorName : String(e);
