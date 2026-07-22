@@ -274,6 +274,43 @@ export function adminDealKb(dealId: string, status: string): InlineKeyboardMarku
   ]);
 }
 
+/**
+ * Клавиатура живой карточки сделки в чате (inline-сообщение).
+ * Кнопка оплаты — callback с проверкой, что нажал покупатель.
+ */
+export function chatCardKb(dealId: string, status: string): InlineKeyboardMarkup | undefined {
+  if (status === "waiting_party") return joinDealKb(dealId);
+  if (status === "waiting_payment") {
+    return kb([
+      [
+        btn("pay", "💳", "Оплатить через CryptoBot", {
+          callback_data: `deal:pay:${dealId}`,
+          style: SUCCESS,
+        }),
+      ],
+      [btn("cancel", "✖️", "Отменить сделку", { callback_data: `deal:cancel:${dealId}`, style: DANGER })],
+    ]);
+  }
+  if (status === "paid") {
+    return kb([
+      [
+        btn("check", "✅", "Я получил товар/услугу", {
+          callback_data: `deal:release:${dealId}`,
+          style: SUCCESS,
+        }),
+      ],
+      [
+        btn("back", "↩️", "Вернуть деньги покупателю", {
+          callback_data: `deal:refund:${dealId}`,
+          style: PRIMARY,
+        }),
+      ],
+      [btn("warn", "⚠️", "Открыть спор", { callback_data: `deal:dispute:${dealId}`, style: DANGER })],
+    ]);
+  }
+  return undefined;
+}
+
 export function disputeResolveKb(dealId: string): InlineKeyboardMarkup {
   return kb([
     [

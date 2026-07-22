@@ -30,6 +30,7 @@ export interface DealRow {
   status: string;
   invoice_id: number | null;
   pay_url: string | null;
+  inline_msg_id: string | null;
   created_at: string;
   closed_at: string | null;
 }
@@ -312,7 +313,7 @@ export class Db {
 
   // --- Внутренние балансы ---------------------------------------------------
 
-  /** Создаёт таблицу балансов (миграция для баз, созданных до её появления). */
+  /** Миграции для баз, созданных до появления новых таблиц/колонок. */
   async ensureBalancesTable(): Promise<void> {
     await this.d1
       .prepare(
@@ -324,6 +325,18 @@ export class Db {
            PRIMARY KEY (user_id, asset)
          )`,
       )
+      .run();
+    try {
+      await this.d1.prepare("ALTER TABLE deals ADD COLUMN inline_msg_id TEXT").run();
+    } catch {
+      // колонка уже существует
+    }
+  }
+
+  async setInlineMsgId(dealId: string, inlineMsgId: string): Promise<void> {
+    await this.d1
+      .prepare("UPDATE deals SET inline_msg_id = ? WHERE id = ?")
+      .bind(inlineMsgId, dealId)
       .run();
   }
 

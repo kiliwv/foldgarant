@@ -151,6 +151,8 @@ export async function handleChosenInlineResult(
     parsed.amount,
     parsed.description,
   );
+  // Запоминаем сообщение в чате — оно станет живой карточкой сделки
+  await ctx.db.setInlineMsgId(dealId, chosen.inline_message_id);
 
   const roleCreator = chosen.result_id === "seller" ? "продавец" : "покупатель";
   const roleFree = chosen.result_id === "seller" ? "покупателя" : "продавца";

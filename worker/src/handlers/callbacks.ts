@@ -17,7 +17,7 @@ import {
   roleKb,
   walletKb,
 } from "../keyboards";
-import { notify, refundToBuyer, releaseToSeller } from "../services";
+import { notify, refundToBuyer, releaseToSeller, updateChatCard } from "../services";
 import { round8 } from "../utils";
 import type { InlineKeyboardMarkup, TgCallbackQuery } from "../types";
 import { fullName } from "../types";
@@ -327,15 +327,20 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
     );
 
     const me = await ctx.tg.getMe();
-    let text = `🤝 Второй участник присоединился!\n\n${card}`;
-    if (invoiceSent) {
-      text += "\n\n💳 Счёт на оплату отправлен покупателю в личные сообщения.";
-    } else {
-      text +=
-        `\n\n⚠️ Покупатель, откройте @${me.username}, нажмите Start ` +
-        "и оплатите счёт в разделе /mydeals.";
+    if (cb.message) {
+      // Кнопка была в личке (ссылка-приглашение) — обновляем то сообщение
+      let text = `🤝 Второй участник присоединился!\n\n${card}`;
+      if (invoiceSent) {
+        text += "\n\n💳 Счёт на оплату отправлен покупателю в личные сообщения.";
+      } else {
+        text +=
+          `\n\n⚠️ Покупатель, откройте @${me.username}, нажмите Start ` +
+          "и оплатите счёт в разделе /mydeals.";
+      }
+      await editSource(ctx, cb, text);
     }
-    await editSource(ctx, cb, text);
+    // Живая карточка в чате: статус + кнопка оплаты
+    await updateChatCard(ctx, dealId);
 
     if (!invoiceSent && user.id === deal.buyer_id) {
       await answer(
@@ -344,6 +349,34 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
       );
     } else {
       await answer("Вы присоединились к сделке!");
+    }
+    return;
+  }
+
+  // --- Оплата из живой карточки в чате ---------------------------------------
+
+  if (data.startsWith("deal:pay:")) {
+    const dealId = data.split(":")[2];
+    const deal = await ctx.db.getDeal(dealId);
+    if (!deal || deal.status !== d.WAITING_PAYMENT || !deal.pay_url) {
+      await answer("Счёт по этой сделке недоступен.", true);
+      return;
+    }
+    if (user.id !== deal.buyer_id) {
+      await answer("Оплачивает покупатель этой сделки.", true);
+      return;
+    }
+    const payText =
+      `💳 <b>Счёт на оплату сделки #${dealId}</b>\n\n` +
+      `Сумма: <b>${fmtAmount(deal.amount)} ${deal.asset}</b>\n` +
+      "Оплатите через @CryptoBot — средства будут храниться у гаранта " +
+      "до подтверждения получения товара/услуги.";
+    const sent = await notify(ctx, user.id, payText, payKb(deal.pay_url, dealId));
+    if (sent) {
+      await answer("💳 Счёт отправлен вам в личные сообщения.", true);
+    } else {
+      const me = await ctx.tg.getMe();
+      await answer(`Откройте @${me.username}, нажмите Start и нажмите «Оплатить» ещё раз.`, true);
     }
     return;
   }
@@ -367,7 +400,8 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
     }
 
     await ctx.db.setStatus(dealId, d.CANCELLED);
-    await editSource(ctx, cb, `❌ Сделка #${dealId} отменена.`);
+    if (cb.message) await editSource(ctx, cb, `❌ Сделка #${dealId} отменена.`);
+    await updateChatCard(ctx, dealId);
     const others = new Set([deal.seller_id, deal.buyer_id, deal.creator_id]);
     others.delete(null);
     others.delete(user.id);
@@ -410,8 +444,13 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
       await answer();
       return;
     }
-    const card = await dealCard(ctx.db, deal);
-    await editSource(ctx, cb, card, buyerEscrowKb(dealId));
+    if (cb.inline_message_id) {
+      // возврат к живой карточке в чате
+      await updateChatCard(ctx, dealId);
+    } else {
+      const card = await dealCard(ctx.db, deal);
+      await editSource(ctx, cb, card, buyerEscrowKb(dealId));
+    }
     await answer();
     return;
   }
@@ -485,12 +524,15 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
     await ctx.db.setStatus(dealId, d.DISPUTED);
     const card = await dealCard(ctx.db, (await ctx.db.getDeal(dealId))!);
 
-    await editSource(
-      ctx,
-      cb,
-      `⚠️ По сделке #${dealId} открыт спор. Администратор рассмотрит его и примет решение.\n\n` +
-        "Опишите ситуацию и пришлите доказательства администратору, когда он свяжется с вами.",
-    );
+    if (cb.message) {
+      await editSource(
+        ctx,
+        cb,
+        `⚠️ По сделке #${dealId} открыт спор. Администратор рассмотрит его и примет решение.\n\n` +
+          "Опишите ситуацию и пришлите доказательства администратору, когда он свяжется с вами.",
+      );
+    }
+    await updateChatCard(ctx, dealId);
     const other = user.id === deal.buyer_id ? deal.seller_id : deal.buyer_id;
     await notify(
       ctx,
@@ -645,6 +687,7 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
       }
       await ctx.db.setStatus(dealId, d.CANCELLED);
       await editSource(ctx, cb, `❌ Сделка #${dealId} отменена администратором.`);
+      await updateChatCard(ctx, dealId);
       const others = new Set([deal.seller_id, deal.buyer_id, deal.creator_id]);
       others.delete(null);
       for (const uid of others) {

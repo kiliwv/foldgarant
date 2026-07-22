@@ -4,9 +4,9 @@ import type { Ctx } from "./ctx";
 import * as d from "./db";
 import type { DealRow } from "./db";
 import { CryptoPayError } from "./cryptopay";
-import { buyerEscrowKb, rateKb, sellerEscrowKb } from "./keyboards";
+import { buyerEscrowKb, chatCardKb, rateKb, sellerEscrowKb } from "./keyboards";
 import type { InlineKeyboardMarkup } from "./types";
-import { fmtAmount, round8 } from "./utils";
+import { dealCard, fmtAmount, round8 } from "./utils";
 
 export function payoutAmount(amount: number, commissionPercent: number): number {
   return round8(amount * (1 - commissionPercent / 100));
@@ -31,6 +31,24 @@ export async function notify(
   } catch {
     console.warn(`Не удалось отправить сообщение пользователю ${userId}`);
     return false;
+  }
+}
+
+/**
+ * Обновляет живую карточку сделки в чате (если сделка создана через inline):
+ * актуальный статус + кнопки этапа. Ошибки редактирования игнорируются.
+ */
+export async function updateChatCard(ctx: Ctx, dealId: string): Promise<void> {
+  const deal = await ctx.db.getDeal(dealId);
+  if (!deal?.inline_msg_id) return;
+  try {
+    await ctx.tg.editMessageText({
+      inline_message_id: deal.inline_msg_id,
+      text: await dealCard(ctx.db, deal),
+      reply_markup: chatCardKb(deal.id, deal.status),
+    });
+  } catch {
+    // сообщение не изменилось или удалено — не критично
   }
 }
 
@@ -87,12 +105,14 @@ export async function releaseToSeller(
           "средства зачислены на внутренний баланс продавца.",
       );
     }
+    await updateChatCard(ctx, deal.id);
     const freshFail = await ctx.db.getDeal(deal.id);
     if (freshFail) await askRatings(ctx, freshFail);
     return true;
   }
 
   await ctx.db.setStatus(deal.id, d.COMPLETED);
+  await updateChatCard(ctx, deal.id);
   const who =
     initiator === "buyer" ? "Покупатель подтвердил получение" : "Спор решён администратором";
   await notify(
@@ -151,10 +171,12 @@ export async function refundToBuyer(
           "средства зачислены на внутренний баланс покупателя.",
       );
     }
+    await updateChatCard(ctx, deal.id);
     return true;
   }
 
   await ctx.db.setStatus(deal.id, d.REFUNDED);
+  await updateChatCard(ctx, deal.id);
   const who = initiator === "seller" ? "Продавец отменил сделку" : "Спор решён администратором";
   await notify(
     ctx,
@@ -182,6 +204,7 @@ export async function markDealPaid(ctx: Ctx, dealId: string): Promise<void> {
 
   await ctx.db.setStatus(deal.id, d.PAID);
   console.log(`Сделка ${deal.id} оплачена, средства в холде`);
+  await updateChatCard(ctx, deal.id);
 
   const amount = `${fmtAmount(deal.amount)} ${deal.asset}`;
   await notify(
