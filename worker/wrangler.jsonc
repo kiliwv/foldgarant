@@ -1,0 +1,36 @@
+{
+  // Конфигурация Cloudflare Worker. Docs: https://developers.cloudflare.com/workers/wrangler/configuration/
+  "name": "foldgarant",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-07-01",
+
+  // База данных D1 (SQLite от Cloudflare).
+  // Создайте её командой `npm run db:create` и вставьте сюда database_id из вывода.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "foldgarant",
+      "database_id": "ЗАМЕНИТЕ_НА_ID_ИЗ_npm_run_db:create"
+    }
+  ],
+
+  // Cron: раз в минуту проверяем оплату счетов (фолбэк на случай,
+  // если вебхук Crypto Pay не настроен или потерялся).
+  "triggers": {
+    "crons": ["* * * * *"]
+  },
+
+  // Несекретные настройки. Секреты (BOT_TOKEN, CRYPTOPAY_TOKEN, WEBHOOK_SECRET)
+  // задаются через `wrangler secret put <ИМЯ>` — см. worker/README.md.
+  "vars": {
+    "CRYPTOPAY_TESTNET": "false",
+    "ADMIN_IDS": "",
+    "COMMISSION_PERCENT": "5",
+    "MIN_AMOUNT": "1",
+    "ASSETS": "USDT,TON,BTC"
+  },
+
+  "observability": {
+    "enabled": true
+  }
+}

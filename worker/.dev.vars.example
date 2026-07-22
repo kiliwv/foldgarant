@@ -1,0 +1,12 @@
+# Локальные секреты для `wrangler dev` (скопируйте в .dev.vars).
+# В продакшене задаются через `wrangler secret put <ИМЯ>`.
+
+# Токен бота от @BotFather
+BOT_TOKEN=123456:ABC-DEF...
+
+# Токен приложения Crypto Pay от @CryptoBot (Crypto Pay -> Create App)
+CRYPTOPAY_TOKEN=12345:AA...
+
+# Произвольная случайная строка (латиница/цифры/_/-, 1-256 символов).
+# Защищает вебхуки и /setup. Сгенерировать: openssl rand -hex 32
+WEBHOOK_SECRET=change_me

@@ -36,6 +36,13 @@
 
 ## Установка
 
+Есть два способа запустить бота:
+
+- **Cloudflare Workers (бесплатный хостинг, без сервера)** — порт бота на
+  TypeScript в каталоге [worker/](worker/): вебхуки вместо polling, база
+  Cloudflare D1. Инструкция: [worker/README.md](worker/README.md).
+- **Свой сервер/VPS (Python)** — оригинальная версия ниже.
+
 ```bash
 git clone <repo>
 cd foldgarant
