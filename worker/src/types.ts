@@ -12,11 +12,19 @@ export interface TgChat {
   type: string;
 }
 
+export interface TgMessageEntity {
+  type: string;
+  offset: number;
+  length: number;
+  custom_emoji_id?: string;
+}
+
 export interface TgMessage {
   message_id: number;
   from?: TgUser;
   chat: TgChat;
   text?: string;
+  entities?: TgMessageEntity[];
 }
 
 export interface TgCallbackQuery {
@@ -55,6 +63,10 @@ export interface InlineKeyboardButton {
   // Цветные кнопки (Bot API 9.4+): "success" — зелёная, "danger" — красная,
   // "primary" — синяя. Старые клиенты показывают обычную кнопку.
   style?: string;
+  // Иконка из эмодзи-пака перед текстом кнопки (Bot API 9.4+).
+  // Работает, если у бота есть Fragment-юзернейм или у владельца бота
+  // активна подписка Telegram Premium.
+  icon_custom_emoji_id?: string;
 }
 
 export interface InlineKeyboardMarkup {

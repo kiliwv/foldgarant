@@ -19,30 +19,56 @@ function kb(rows: InlineKeyboardButton[][]): InlineKeyboardMarkup {
 // в цвет текста кнопки (белый контур, как у ботов-референсов).
 const MONO = "︎";
 
+// ID кастомных эмодзи для иконок кнопок (Bot API 9.4, icon_custom_emoji_id).
+// Узнать ID: отправьте боту /emojiid с нужными эмодзи (команда для админа).
+// Работает при Fragment-юзернейме бота или Telegram Premium у владельца.
+// Пустая строка — вместо иконки используется обычный эмодзи из текста.
+const ICONS: Record<string, string> = {
+  profile: "",
+  search: "",
+  newdeal: "",
+  mydeals: "",
+  help: "",
+  back: "",
+  buyer: "",
+  seller: "",
+};
+
+function btn(
+  icon: string,
+  emoji: string,
+  label: string,
+  rest: Partial<InlineKeyboardButton>,
+): InlineKeyboardButton {
+  const id = ICONS[icon];
+  if (id) return { text: label, icon_custom_emoji_id: id, ...rest } as InlineKeyboardButton;
+  return { text: `${emoji} ${label}`, ...rest } as InlineKeyboardButton;
+}
+
 export function mainMenu(): InlineKeyboardMarkup {
   return kb([
     [
-      { text: `👤${MONO} Профиль`, callback_data: "menu:profile" },
-      { text: "🔍 Поиск", callback_data: "menu:search" },
+      btn("profile", `👤${MONO}`, "Профиль", { callback_data: "menu:profile" }),
+      btn("search", "🔍", "Поиск", { callback_data: "menu:search" }),
     ],
-    [{ text: `🛡${MONO} Новая сделка`, callback_data: "menu:newdeal", style: SUCCESS }],
+    [btn("newdeal", `🛡${MONO}`, "Новая сделка", { callback_data: "menu:newdeal", style: SUCCESS })],
     [
-      { text: `🗂${MONO} Мои сделки`, callback_data: "menu:mydeals" },
-      { text: "ℹ️ Как это работает", callback_data: "menu:help" },
+      btn("mydeals", `🗂${MONO}`, "Мои сделки", { callback_data: "menu:mydeals" }),
+      btn("help", "ℹ️", "Как это работает", { callback_data: "menu:help" }),
     ],
   ]);
 }
 
 /** Кнопка возврата в главное меню. */
 export function backKb(): InlineKeyboardMarkup {
-  return kb([[{ text: `↩${MONO} Назад`, callback_data: "menu:back" }]]);
+  return kb([[btn("back", `↩${MONO}`, "Назад", { callback_data: "menu:back" })]]);
 }
 
 export function roleKb(): InlineKeyboardMarkup {
   return kb([
-    [{ text: "🛒 Покупатель", callback_data: "role:buyer", style: SUCCESS }],
-    [{ text: "💼 Продавец", callback_data: "role:seller", style: DANGER }],
-    [{ text: `↩${MONO} Назад`, callback_data: "menu:back" }],
+    [btn("buyer", "🛒", "Покупатель", { callback_data: "role:buyer", style: SUCCESS })],
+    [btn("seller", "💼", "Продавец", { callback_data: "role:seller", style: DANGER })],
+    [btn("back", `↩${MONO}`, "Назад", { callback_data: "menu:back" })],
   ]);
 }
 
@@ -113,7 +139,7 @@ export function sellerEscrowKb(dealId: string): InlineKeyboardMarkup {
 export function confirmReleaseKb(dealId: string): InlineKeyboardMarkup {
   return kb([
     [{ text: "✅ Да, подтверждаю", callback_data: `deal:release2:${dealId}`, style: SUCCESS }],
-    [{ text: `↩${MONO} Назад`, callback_data: `deal:back:${dealId}` }],
+    [btn("back", `↩${MONO}`, "Назад", { callback_data: `deal:back:${dealId}` })],
   ]);
 }
 
