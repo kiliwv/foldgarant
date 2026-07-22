@@ -97,7 +97,7 @@ export async function handleInlineQuery(ctx: Ctx, query: TgInlineQuery): Promise
     {
       type: "article",
       id: "seller",
-      title: `🟠 Продаю за ${amountStr}`,
+      title: `💼 Продаю за ${amountStr}`,
       description: `Вы продавец: ${parsed.description}`,
       input_message_content: placeholder,
       reply_markup: processingKb(),
@@ -105,7 +105,7 @@ export async function handleInlineQuery(ctx: Ctx, query: TgInlineQuery): Promise
     {
       type: "article",
       id: "buyer",
-      title: `🔵 Покупаю за ${amountStr}`,
+      title: `🛒 Покупаю за ${amountStr}`,
       description: `Вы покупатель: ${parsed.description}`,
       input_message_content: placeholder,
       reply_markup: processingKb(),
