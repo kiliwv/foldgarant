@@ -52,6 +52,13 @@ export interface UserStats {
   negative: number;
 }
 
+export interface BalanceRow {
+  user_id: number;
+  asset: string;
+  amount: number;
+  total_out: number;
+}
+
 export interface FsmState {
   state: string | null;
   data: Record<string, unknown>;
@@ -287,6 +294,49 @@ export class Db {
       .bind(userId, limit)
       .all<RatingRow>();
     return res.results;
+  }
+
+  // --- Внутренние балансы ---------------------------------------------------
+
+  /** Создаёт таблицу балансов (миграция для баз, созданных до её появления). */
+  async ensureBalancesTable(): Promise<void> {
+    await this.d1
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS balances (
+           user_id   INTEGER NOT NULL,
+           asset     TEXT NOT NULL,
+           amount    REAL NOT NULL DEFAULT 0,
+           total_out REAL NOT NULL DEFAULT 0,
+           PRIMARY KEY (user_id, asset)
+         )`,
+      )
+      .run();
+  }
+
+  async getBalances(userId: number): Promise<BalanceRow[]> {
+    const res = await this.d1
+      .prepare("SELECT * FROM balances WHERE user_id = ? AND amount > 0")
+      .bind(userId)
+      .all<BalanceRow>();
+    return res.results;
+  }
+
+  async creditBalance(userId: number, asset: string, amount: number): Promise<void> {
+    await this.d1
+      .prepare(
+        `INSERT INTO balances (user_id, asset, amount) VALUES (?, ?, ?)
+         ON CONFLICT(user_id, asset) DO UPDATE SET amount = amount + excluded.amount`,
+      )
+      .bind(userId, asset, amount)
+      .run();
+  }
+
+  /** Обнуляет баланс после успешного вывода, фиксируя новую сумму выведенного. */
+  async settleWithdrawal(userId: number, asset: string, newTotalOut: number): Promise<void> {
+    await this.d1
+      .prepare("UPDATE balances SET amount = 0, total_out = ? WHERE user_id = ? AND asset = ?")
+      .bind(newTotalOut, userId, asset)
+      .run();
   }
 
   // --- FSM-состояния диалогов ----------------------------------------------

@@ -62,9 +62,21 @@ export function mainMenu(): InlineKeyboardMarkup {
     [btn("newdeal", `🛡${MONO}`, "Новая сделка", { callback_data: "menu:newdeal", style: SUCCESS })],
     [
       btn("mydeals", `🗂${MONO}`, "Мои сделки", { callback_data: "menu:mydeals" }),
-      btn("help", "ℹ️", "Как это работает", { callback_data: "menu:help" }),
+      btn("money", "💼", "Кошелёк", { callback_data: "menu:wallet" }),
     ],
+    [btn("help", "ℹ️", "Как это работает", { callback_data: "menu:help" })],
   ]);
+}
+
+export function walletKb(hasFunds: boolean): InlineKeyboardMarkup {
+  const rows: InlineKeyboardButton[][] = [];
+  if (hasFunds) {
+    rows.push([
+      btn("money", "💸", "Вывести", { callback_data: "wallet:withdraw", style: SUCCESS }),
+    ]);
+  }
+  rows.push([btn("back", `↩${MONO}`, "Назад", { callback_data: "menu:back" })]);
+  return kb(rows);
 }
 
 /** Кнопка возврата в главное меню. */

@@ -221,6 +221,24 @@ async function cmdDisputes(ctx: Ctx, msg: TgMessage): Promise<void> {
   }
 }
 
+export async function walletView(
+  ctx: Ctx,
+  userId: number,
+): Promise<{ text: string; hasFunds: boolean }> {
+  const balances = await ctx.db.getBalances(userId);
+  const cryptoBot = ctx.cfg.cryptopayTestnet ? "@CryptoTestnetBot" : "@CryptoBot";
+  const balanceLine = balances.length
+    ? balances.map((b) => `<b>${fmtAmount(b.amount)} ${b.asset}</b>`).join(" · ")
+    : `<b>0 ${ctx.cfg.assets[0]}</b>`;
+  const text =
+    "💼 <b>Кошелёк</b>\n\n" +
+    `💰 Баланс: ${balanceLine}\n\n` +
+    "Средства попадают сюда, если мгновенная выплата по сделке не прошла " +
+    `(например, вы ещё не открывали ${cryptoBot}).\n\n` +
+    `Вывод — на ваш баланс в ${cryptoBot}. Перед выводом нажмите там Start.`;
+  return { text, hasFunds: balances.length > 0 };
+}
+
 export async function balanceText(ctx: Ctx): Promise<string> {
   const balances = await ctx.cp.getBalance();
   const lines = ["💰 <b>Баланс приложения Crypto Pay:</b>"];

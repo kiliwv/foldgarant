@@ -13,8 +13,10 @@ import {
   disputeResolveKb,
   mainMenu,
   payKb,
+  walletKb,
 } from "../keyboards";
 import { notify, refundToBuyer, releaseToSeller } from "../services";
+import { round8 } from "../utils";
 import type { InlineKeyboardMarkup, TgCallbackQuery } from "../types";
 import { fullName } from "../types";
 import { dealCard, fmtAmount } from "../utils";
@@ -32,6 +34,7 @@ import {
   profileText,
   sendMyDeals,
   startNewDeal,
+  walletView,
 } from "./messages";
 
 /** Редактирует сообщение с кнопкой: обычное или inline (в чужом чате). */
@@ -86,6 +89,51 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
         reply_markup: backKb(),
       });
     }
+    await answer();
+    return;
+  }
+
+  if (data === "menu:wallet") {
+    if (cb.message) {
+      const wallet = await walletView(ctx, user.id);
+      await ctx.tg.sendMessage(cb.message.chat.id, wallet.text, {
+        reply_markup: walletKb(wallet.hasFunds),
+      });
+    }
+    await answer();
+    return;
+  }
+
+  if (data === "wallet:withdraw") {
+    const balances = await ctx.db.getBalances(user.id);
+    if (!balances.length) {
+      await answer("Баланс пуст.", true);
+      return;
+    }
+    await editSource(ctx, cb, "⏳ Вывожу средства...");
+    const cryptoBot = ctx.cfg.cryptopayTestnet ? "@CryptoTestnetBot" : "@CryptoBot";
+    const lines: string[] = [];
+    for (const b of balances) {
+      const target = round8(b.total_out + b.amount);
+      try {
+        await ctx.cp.transfer({
+          user_id: user.id,
+          asset: b.asset,
+          amount: b.amount,
+          spend_id: `wd_${user.id}_${b.asset}_${target}`,
+        });
+        await ctx.db.settleWithdrawal(user.id, b.asset, target);
+        lines.push(`✅ ${fmtAmount(b.amount)} ${b.asset} отправлены на ваш баланс в ${cryptoBot}.`);
+      } catch (e) {
+        const name = e instanceof CryptoPayError ? e.errorName : String(e);
+        let hint = "";
+        if (name === "USER_NOT_FOUND") {
+          hint = ` Откройте ${cryptoBot}, нажмите Start и повторите вывод.`;
+        }
+        lines.push(`❌ ${b.asset}: вывод не прошёл (${name}).${hint}`);
+      }
+    }
+    await editSource(ctx, cb, `💼 <b>Вывод средств</b>\n\n${lines.join("\n")}`, backKb());
     await answer();
     return;
   }
