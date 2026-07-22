@@ -52,13 +52,18 @@ export function parseQuery(text: string, cfg: Config): ParsedQuery | null {
   };
 }
 
-function helpArticle(cfg: Config, note = ""): Record<string, unknown> {
+function thumb(origin: string | undefined, name: string) {
+  return origin ? { thumbnail_url: `${origin}/icons/${name}.png` } : {};
+}
+
+function helpArticle(cfg: Config, origin?: string, note = ""): Record<string, unknown> {
   const botHint = "сумма [валюта] описание";
   return {
     type: "article",
     id: "help",
     title: note || `Формат: ${botHint}`,
     description: `Например: 25 USDT дизайн логотипа • валюты: ${cfg.assets.join(", ")}`,
+    ...thumb(origin, "help"),
     input_message_content: {
       message_text:
         "ℹ️ <b>Как создать сделку прямо в чате</b>\n\n" +
@@ -73,7 +78,7 @@ function helpArticle(cfg: Config, note = ""): Record<string, unknown> {
 export async function handleInlineQuery(ctx: Ctx, query: TgInlineQuery): Promise<void> {
   const parsed = parseQuery(query.query, ctx.cfg);
   if (!parsed) {
-    await ctx.tg.answerInlineQuery(query.id, [helpArticle(ctx.cfg)], {
+    await ctx.tg.answerInlineQuery(query.id, [helpArticle(ctx.cfg, ctx.origin)], {
       cache_time: 5,
       is_personal: true,
     });
@@ -82,7 +87,7 @@ export async function handleInlineQuery(ctx: Ctx, query: TgInlineQuery): Promise
   if (parsed.amount < ctx.cfg.minAmount) {
     await ctx.tg.answerInlineQuery(
       query.id,
-      [helpArticle(ctx.cfg, `Минимальная сумма — ${fmtAmount(ctx.cfg.minAmount)}`)],
+      [helpArticle(ctx.cfg, ctx.origin, `Минимальная сумма — ${fmtAmount(ctx.cfg.minAmount)}`)],
       { cache_time: 1, is_personal: true },
     );
     return;
@@ -97,18 +102,20 @@ export async function handleInlineQuery(ctx: Ctx, query: TgInlineQuery): Promise
     {
       type: "article",
       id: "seller",
-      title: `💼 Продаю за ${amountStr}`,
+      title: `Продаю за ${amountStr}`,
       description: `Вы продавец: ${parsed.description}`,
       input_message_content: placeholder,
       reply_markup: processingKb(),
+      ...thumb(ctx.origin, "seller"),
     },
     {
       type: "article",
       id: "buyer",
-      title: `🛒 Покупаю за ${amountStr}`,
+      title: `Покупаю за ${amountStr}`,
       description: `Вы покупатель: ${parsed.description}`,
       input_message_content: placeholder,
       reply_markup: processingKb(),
+      ...thumb(ctx.origin, "buyer"),
     },
   ];
   await ctx.tg.answerInlineQuery(query.id, results, { cache_time: 0, is_personal: true });
