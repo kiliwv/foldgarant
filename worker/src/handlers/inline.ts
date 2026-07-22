@@ -11,6 +11,7 @@
 
 import type { Config } from "../config";
 import type { Ctx } from "../ctx";
+import { emojify } from "../custom-emoji";
 import { joinDealKb, processingKb } from "../keyboards";
 import type { TgChosenInlineResult, TgInlineQuery } from "../types";
 import { fullName } from "../types";
@@ -66,12 +67,13 @@ function helpArticle(cfg: Config, origin?: string, note = ""): Record<string, un
     description: `Например: 25 дизайн логотипа до пятницы • условия обязательны`,
     ...thumb(origin, "help"),
     input_message_content: {
-      message_text:
+      message_text: emojify(
         "ℹ️ <b>Как создать сделку прямо в чате</b>\n\n" +
-        `Введите: <code>@имя_бота ${botHint}</code>\n` +
-        "Например: <code>@имя_бота 25 дизайн логотипа до пятницы</code>\n" +
-        "и выберите свою роль. Условия сделки обязательны. " +
-        `Минимальная сумма: ${fmtAmount(cfg.minAmount)}.`,
+          `Введите: <code>@имя_бота ${botHint}</code>\n` +
+          "Например: <code>@имя_бота 25 дизайн логотипа до пятницы</code>\n" +
+          "и выберите свою роль. Условия сделки обязательны. " +
+          `Минимальная сумма: ${fmtAmount(cfg.minAmount)}.`,
+      ),
       parse_mode: "HTML",
     },
   };
@@ -105,7 +107,7 @@ export async function handleInlineQuery(ctx: Ctx, query: TgInlineQuery): Promise
 
   const amountStr = `${fmtAmount(parsed.amount)} ${parsed.asset}`;
   const placeholder = {
-    message_text: `⏳ Создаю сделку на <b>${amountStr}</b>...`,
+    message_text: emojify(`⏳ Создаю сделку на <b>${amountStr}</b>...`),
     parse_mode: "HTML",
   };
   const results = [

@@ -10,7 +10,9 @@ import {
   buyerEscrowKb,
   cancelDealKb,
   confirmDealKb,
+  dealListBtn,
   joinDealKb,
+  listToggleBtn,
   mainMenu,
   payKb,
   roleKb,
@@ -116,15 +118,17 @@ export async function myDealsView(
   const text = deals.length ? `${title}\n\nВыберите сделку:` : `${title}\n\n${empty}`;
 
   const rows: InlineKeyboardMarkup["inline_keyboard"] = deals.map((deal) => [
-    {
-      text: `${STATUS_EMOJI[deal.status] ?? ""} #${deal.id} · ${fmtAmount(deal.amount)} ${deal.asset}`,
-      callback_data: `deal:view:${deal.id}`,
-    },
+    dealListBtn(
+      deal.status,
+      STATUS_EMOJI[deal.status] ?? "🧾",
+      `#${deal.id} · ${fmtAmount(deal.amount)} ${deal.asset}`,
+      `deal:view:${deal.id}`,
+    ),
   ]);
   rows.push([
     mode === "active"
-      ? { text: "🗂 История сделок", callback_data: "menu:history" }
-      : { text: "📂 Активные сделки", callback_data: "menu:mydeals" },
+      ? listToggleBtn("История сделок", "menu:history")
+      : listToggleBtn("Активные сделки", "menu:mydeals"),
   ]);
   rows.push(backButtonRow("menu:back"));
   return { text, kb: { inline_keyboard: rows } };
