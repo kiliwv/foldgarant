@@ -41,6 +41,7 @@ const ICONS: Record<string, string> = {
   money: "5974217466270716579",
   skip: "6005775159384870794",
   lock: "5879895758202735862",
+  refresh: "5877410604225924969",
 };
 
 // Иконка статуса сделки для кнопок списков
@@ -246,7 +247,7 @@ export function adminPanelKb(counts: {
     ],
     [
       btn("money", "💰", "Баланс", { callback_data: "adm:balance" }),
-      { text: "🔄 Обновить", callback_data: "adm:panel" },
+      btn("refresh", "🔄", "Обновить", { callback_data: "adm:panel" }),
     ],
   ]);
 }
@@ -271,7 +272,7 @@ export function adminDealKb(dealId: string, status: string): InlineKeyboardMarku
   }
   if (status === "waiting_payment") {
     return kb([
-      [btn("search", "🔄", "Проверить оплату", { callback_data: `adm:checkpay:${dealId}` })],
+      [btn("refresh", "🔄", "Проверить оплату", { callback_data: `adm:checkpay:${dealId}` })],
       [
         btn("check", "✅", "Подтвердить оплату вручную", {
           callback_data: `adm:forcepay:${dealId}`,
