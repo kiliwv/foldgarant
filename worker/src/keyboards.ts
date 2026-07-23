@@ -131,14 +131,14 @@ export function assetKb(assets: string[]): InlineKeyboardMarkup {
       callback_data: `asset:${asset}`,
       style: PRIMARY,
     })),
-    [{ text: "✖️ Отмена", callback_data: "newdeal:cancel", style: DANGER }],
+    [btn("cancel", "✖️", "Отмена", { callback_data: "newdeal:cancel", style: DANGER })],
   ]);
 }
 
 export function confirmDealKb(): InlineKeyboardMarkup {
   return kb([
-    [{ text: "✅ Создать сделку", callback_data: "newdeal:confirm", style: SUCCESS }],
-    [{ text: "✖️ Отмена", callback_data: "newdeal:cancel", style: DANGER }],
+    [btn("check", "✅", "Создать сделку", { callback_data: "newdeal:confirm", style: SUCCESS })],
+    [btn("cancel", "✖️", "Отмена", { callback_data: "newdeal:cancel", style: DANGER })],
   ]);
 }
 
