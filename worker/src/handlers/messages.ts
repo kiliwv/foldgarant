@@ -76,10 +76,11 @@ export async function profileText(ctx: Ctx, userId: number): Promise<string> {
   const reviews = await ctx.db.lastReviews(userId);
 
   const totalVolume = Object.values(stats.volumes).reduce((a, b) => a + b, 0);
+  const autoVerified = stats.completed >= VERIFY_MIN_DEALS && totalVolume >= VERIFY_MIN_VOLUME;
   let badge = "";
   if ((user.is_gold ?? 0) === 1 || ctx.cfg.adminIds.includes(userId)) {
     badge = BADGE_GOLD;
-  } else if (stats.completed >= VERIFY_MIN_DEALS && totalVolume >= VERIFY_MIN_VOLUME) {
+  } else if ((user.is_verified ?? 0) === 1 || autoVerified) {
     badge = BADGE_VERIFIED;
   }
 
@@ -429,10 +430,15 @@ async function cmdEmojiId(ctx: Ctx, msg: TgMessage): Promise<void> {
   );
 }
 
-/** Выдача/снятие золотой верификации: /gold ID или /gold @юзернейм. */
-async function cmdGold(ctx: Ctx, msg: TgMessage, gold: boolean): Promise<void> {
+/** Выдача/снятие бейджа: /gold, /ungold, /verify, /unverify (ID или @юзернейм). */
+async function cmdBadge(
+  ctx: Ctx,
+  msg: TgMessage,
+  kind: "gold" | "verified",
+  grant: boolean,
+): Promise<void> {
   const parts = (msg.text ?? "").split(/\s+/).filter(Boolean);
-  const cmd = gold ? "/gold" : "/ungold";
+  const cmd = (grant ? "/" : "/un") + (kind === "gold" ? "gold" : "verify");
   const arg = parts[1]?.trim();
   if (!arg) {
     await ctx.tg.sendMessage(
@@ -448,7 +454,11 @@ async function cmdGold(ctx: Ctx, msg: TgMessage, gold: boolean): Promise<void> {
     const target = await ctx.db.getUserByUsername(arg.replace(/^@/, ""));
     targetId = target?.id ?? null;
   }
-  const ok = targetId !== null && (await ctx.db.setGold(targetId, gold));
+  const ok =
+    targetId !== null &&
+    (kind === "gold"
+      ? await ctx.db.setGold(targetId, grant)
+      : await ctx.db.setVerified(targetId, grant));
   if (!ok) {
     await ctx.tg.sendMessage(
       msg.chat.id,
@@ -456,11 +466,13 @@ async function cmdGold(ctx: Ctx, msg: TgMessage, gold: boolean): Promise<void> {
     );
     return;
   }
+  const badge = kind === "gold" ? BADGE_GOLD.trim() : BADGE_VERIFIED.trim();
+  const label = kind === "gold" ? "Золотая верификация" : "Синяя галочка";
   await ctx.tg.sendMessage(
     msg.chat.id,
-    gold
-      ? `${BADGE_GOLD.trim()} Золотая верификация выдана пользователю <code>${targetId}</code>.`
-      : `Золотая верификация снята с пользователя <code>${targetId}</code>.`,
+    grant
+      ? `${badge} ${label} выдана пользователю <code>${targetId}</code>.`
+      : `${label} снята с пользователя <code>${targetId}</code>.`,
   );
 }
 
@@ -756,10 +768,16 @@ export async function handleMessage(ctx: Ctx, msg: TgMessage): Promise<void> {
         if (isAdmin(ctx, user.id)) return cmdTestText(ctx, msg);
         return;
       case "/gold":
-        if (isAdmin(ctx, user.id)) return cmdGold(ctx, msg, true);
+        if (isAdmin(ctx, user.id)) return cmdBadge(ctx, msg, "gold", true);
         return;
       case "/ungold":
-        if (isAdmin(ctx, user.id)) return cmdGold(ctx, msg, false);
+        if (isAdmin(ctx, user.id)) return cmdBadge(ctx, msg, "gold", false);
+        return;
+      case "/verify":
+        if (isAdmin(ctx, user.id)) return cmdBadge(ctx, msg, "verified", true);
+        return;
+      case "/unverify":
+        if (isAdmin(ctx, user.id)) return cmdBadge(ctx, msg, "verified", false);
         return;
       case "/ban":
         if (isAdmin(ctx, user.id)) return cmdBanUnban(ctx, msg, true);
