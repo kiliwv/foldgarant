@@ -15,7 +15,7 @@ import { emojify } from "../custom-emoji";
 import { joinDealKb, processingKb } from "../keyboards";
 import type { TgChosenInlineResult, TgInlineQuery } from "../types";
 import { fullName } from "../types";
-import { escapeHtml, fmtAmount, mention, round8 } from "../utils";
+import { escapeHtml, fmtAmount, mention, round8, userBadge } from "../utils";
 
 const MAX_DESCRIPTION = 500;
 
@@ -159,7 +159,7 @@ export async function handleChosenInlineResult(
   const payout = round8(parsed.amount * (1 - ctx.cfg.commissionPercent / 100));
   const text =
     `🤝 <b>Приглашение в сделку #${dealId}</b>\n\n` +
-    `├ ${mention(user.id, user.username)} — ${roleCreator}\n` +
+    `├ ${mention(user.id, user.username)}${await userBadge(ctx, user.id)} — ${roleCreator}\n` +
     `├ Сумма: <b>${fmtAmount(parsed.amount)} ${parsed.asset}</b>\n` +
     `├ Комиссия гаранта: ${ctx.cfg.commissionPercent}% ` +
     `(продавец получит ${fmtAmount(payout)} ${parsed.asset})\n` +

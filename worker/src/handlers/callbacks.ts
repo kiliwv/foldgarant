@@ -171,7 +171,7 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
       await answer("Сделка не найдена.", true);
       return;
     }
-    const card = await dealCard(ctx.db, deal);
+    const card = await dealCard(ctx, deal);
     const actions = dealActionsKb(deal, user.id);
     const listTarget = [d.COMPLETED, d.REFUNDED, d.CANCELLED].includes(deal.status)
       ? "menu:history"
@@ -316,7 +316,7 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
     }
 
     await ctx.db.setInvoice(dealId, invoice.invoice_id, invoice.bot_invoice_url);
-    const card = await dealCard(ctx.db, (await ctx.db.getDeal(dealId))!);
+    const card = await dealCard(ctx, (await ctx.db.getDeal(dealId))!);
 
     await notify(ctx, deal.creator_id, `🤝 Второй участник присоединился к сделке!\n\n${card}`);
 
@@ -454,7 +454,7 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
       // возврат к живой карточке в чате
       await updateChatCard(ctx, dealId);
     } else {
-      const card = await dealCard(ctx.db, deal);
+      const card = await dealCard(ctx, deal);
       await editSource(ctx, cb, card, buyerEscrowKb(dealId));
     }
     await answer();
@@ -528,7 +528,7 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
     }
 
     await ctx.db.setStatus(dealId, d.DISPUTED);
-    const card = await dealCard(ctx.db, (await ctx.db.getDeal(dealId))!);
+    const card = await dealCard(ctx, (await ctx.db.getDeal(dealId))!);
 
     if (cb.message) {
       await editSource(
@@ -643,7 +643,7 @@ export async function handleCallback(ctx: Ctx, cb: TgCallbackQuery): Promise<voi
       }
       if (cb.message) {
         for (const deal of deals) {
-          const card = await dealCard(ctx.db, deal);
+          const card = await dealCard(ctx, deal);
           await ctx.tg.sendMessage(cb.message.chat.id, card, {
             reply_markup: adminDealKb(deal.id, deal.status),
           });
