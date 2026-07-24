@@ -20,7 +20,17 @@ import {
   skipCommentKb,
   disputeResolveKb,
 } from "../keyboards";
-import { STATUS_EMOJI, fmtAmount, dealCard, escapeHtml, reputationLine, round8 } from "../utils";
+import {
+  BADGE_GOLD,
+  BADGE_VERIFIED,
+  STATUS_EMOJI,
+  fmtAmount,
+  dealCard,
+  escapeHtml,
+  reputationLine,
+  round8,
+  userBadge,
+} from "../utils";
 import type { InlineKeyboardMarkup, TgMessage } from "../types";
 import { fullName } from "../types";
 
@@ -61,28 +71,13 @@ export const HELP_TEXT =
   "выберите роль — и собеседнику придёт приглашение с кнопкой (как @send у CryptoBot).\n\n" +
   "❗️ Для получения выплат у вас должен быть открыт @CryptoBot (нажмите там Start).";
 
-// Автоверификация: 100+ успешных сделок на сумму от 500 USDT
-const VERIFY_MIN_DEALS = 100;
-const VERIFY_MIN_VOLUME = 500;
-// Бейджи у ника (фолбэки не из карты emojify, чтобы не задвоить tg-emoji)
-const BADGE_VERIFIED = ' <tg-emoji emoji-id="5956237062427382219">☑️</tg-emoji>';
-const BADGE_GOLD = ' <tg-emoji emoji-id="5828192400727610571">👑</tg-emoji>';
-
 export async function profileText(ctx: Ctx, userId: number): Promise<string> {
   const user = await ctx.db.getUser(userId);
   if (!user) return "❌ Пользователь не найден. Нажмите /start.";
 
   const stats = await ctx.db.userStats(userId);
   const reviews = await ctx.db.lastReviews(userId);
-
-  const totalVolume = Object.values(stats.volumes).reduce((a, b) => a + b, 0);
-  const autoVerified = stats.completed >= VERIFY_MIN_DEALS && totalVolume >= VERIFY_MIN_VOLUME;
-  let badge = "";
-  if ((user.is_gold ?? 0) === 1 || ctx.cfg.adminIds.includes(userId)) {
-    badge = BADGE_GOLD;
-  } else if ((user.is_verified ?? 0) === 1 || autoVerified) {
-    badge = BADGE_VERIFIED;
-  }
+  const badge = await userBadge(ctx, userId, user);
 
   const dt = new Date(user.created_at);
   const regDate = `${String(dt.getUTCDate()).padStart(2, "0")}.${String(
@@ -205,7 +200,7 @@ async function cmdStart(ctx: Ctx, msg: TgMessage, args: string): Promise<void> {
       );
       return;
     }
-    const card = await dealCard(ctx.db, deal);
+    const card = await dealCard(ctx, deal);
     const role = deal.seller_id === null ? "продавца" : "покупателя";
     await ctx.tg.sendMessage(
       msg.chat.id,
@@ -269,7 +264,7 @@ async function cmdDisputes(ctx: Ctx, msg: TgMessage): Promise<void> {
     return;
   }
   for (const deal of deals) {
-    const card = await dealCard(ctx.db, deal);
+    const card = await dealCard(ctx, deal);
     await ctx.tg.sendMessage(msg.chat.id, card, { reply_markup: disputeResolveKb(deal.id) });
   }
 }
@@ -466,7 +461,7 @@ async function cmdBadge(
     );
     return;
   }
-  const badge = kind === "gold" ? BADGE_GOLD.trim() : BADGE_VERIFIED.trim();
+  const badge = kind === "gold" ? BADGE_GOLD : BADGE_VERIFIED;
   const label = kind === "gold" ? "Золотая верификация" : "Синяя галочка";
   await ctx.tg.sendMessage(
     msg.chat.id,

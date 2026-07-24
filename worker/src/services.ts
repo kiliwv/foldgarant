@@ -44,7 +44,7 @@ export async function updateChatCard(ctx: Ctx, dealId: string): Promise<void> {
   try {
     await ctx.tg.editMessageText({
       inline_message_id: deal.inline_msg_id,
-      text: await dealCard(ctx.db, deal),
+      text: await dealCard(ctx, deal),
       reply_markup: chatCardKb(deal.id, deal.status),
     });
   } catch {
