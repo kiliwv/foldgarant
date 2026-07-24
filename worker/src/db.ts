@@ -17,6 +17,7 @@ export interface UserRow {
   full_name: string | null;
   created_at: string;
   is_banned: number;
+  is_gold?: number;
 }
 
 export interface DealRow {
@@ -331,6 +332,22 @@ export class Db {
     } catch {
       // колонка уже существует
     }
+    try {
+      await this.d1
+        .prepare("ALTER TABLE users ADD COLUMN is_gold INTEGER NOT NULL DEFAULT 0")
+        .run();
+    } catch {
+      // колонка уже существует
+    }
+  }
+
+  /** Золотая верификация. false — пользователь не найден. */
+  async setGold(userId: number, gold: boolean): Promise<boolean> {
+    const res = await this.d1
+      .prepare("UPDATE users SET is_gold = ? WHERE id = ?")
+      .bind(gold ? 1 : 0, userId)
+      .run();
+    return (res.meta.changes ?? 0) > 0;
   }
 
   async setInlineMsgId(dealId: string, inlineMsgId: string): Promise<void> {

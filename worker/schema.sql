@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS users (
     username    TEXT,
     full_name   TEXT,
     created_at  TEXT NOT NULL,
-    is_banned   INTEGER NOT NULL DEFAULT 0
+    is_banned   INTEGER NOT NULL DEFAULT 0,
+    is_gold     INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS deals (

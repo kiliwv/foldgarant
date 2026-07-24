@@ -61,12 +61,27 @@ export const HELP_TEXT =
   "выберите роль — и собеседнику придёт приглашение с кнопкой (как @send у CryptoBot).\n\n" +
   "❗️ Для получения выплат у вас должен быть открыт @CryptoBot (нажмите там Start).";
 
+// Автоверификация: 100+ успешных сделок на сумму от 500 USDT
+const VERIFY_MIN_DEALS = 100;
+const VERIFY_MIN_VOLUME = 500;
+// Бейджи у ника (фолбэки не из карты emojify, чтобы не задвоить tg-emoji)
+const BADGE_VERIFIED = ' <tg-emoji emoji-id="5956237062427382219">☑️</tg-emoji>';
+const BADGE_GOLD = ' <tg-emoji emoji-id="5828192400727610571">👑</tg-emoji>';
+
 export async function profileText(ctx: Ctx, userId: number): Promise<string> {
   const user = await ctx.db.getUser(userId);
   if (!user) return "❌ Пользователь не найден. Нажмите /start.";
 
   const stats = await ctx.db.userStats(userId);
   const reviews = await ctx.db.lastReviews(userId);
+
+  const totalVolume = Object.values(stats.volumes).reduce((a, b) => a + b, 0);
+  let badge = "";
+  if ((user.is_gold ?? 0) === 1 || ctx.cfg.adminIds.includes(userId)) {
+    badge = BADGE_GOLD;
+  } else if (stats.completed >= VERIFY_MIN_DEALS && totalVolume >= VERIFY_MIN_VOLUME) {
+    badge = BADGE_VERIFIED;
+  }
 
   const dt = new Date(user.created_at);
   const regDate = `${String(dt.getUTCDate()).padStart(2, "0")}.${String(
@@ -81,7 +96,7 @@ export async function profileText(ctx: Ctx, userId: number): Promise<string> {
     : "0";
 
   const lines = [
-    `👤 <b>Профиль ${escapeHtml(name)}</b> [ ID: <code>${userId}</code> ]`,
+    `👤 <b>Профиль ${escapeHtml(name)}</b>${badge} [ ID: <code>${userId}</code> ]`,
     "",
     `⭐️ Репутация: ${reputationLine(stats.positive, stats.negative)}`,
     `🤝 Сделки: <b>${stats.completed}</b> шт · оборот: ${volume}`,
@@ -414,6 +429,41 @@ async function cmdEmojiId(ctx: Ctx, msg: TgMessage): Promise<void> {
   );
 }
 
+/** Выдача/снятие золотой верификации: /gold ID или /gold @юзернейм. */
+async function cmdGold(ctx: Ctx, msg: TgMessage, gold: boolean): Promise<void> {
+  const parts = (msg.text ?? "").split(/\s+/).filter(Boolean);
+  const cmd = gold ? "/gold" : "/ungold";
+  const arg = parts[1]?.trim();
+  if (!arg) {
+    await ctx.tg.sendMessage(
+      msg.chat.id,
+      `Использование: <code>${cmd} ID</code> или <code>${cmd} @юзернейм</code>`,
+    );
+    return;
+  }
+  let targetId: number | null = null;
+  if (/^\d+$/.test(arg)) {
+    targetId = parseInt(arg, 10);
+  } else {
+    const target = await ctx.db.getUserByUsername(arg.replace(/^@/, ""));
+    targetId = target?.id ?? null;
+  }
+  const ok = targetId !== null && (await ctx.db.setGold(targetId, gold));
+  if (!ok) {
+    await ctx.tg.sendMessage(
+      msg.chat.id,
+      "❌ Пользователь не найден — он должен хотя бы раз запустить бота.",
+    );
+    return;
+  }
+  await ctx.tg.sendMessage(
+    msg.chat.id,
+    gold
+      ? `${BADGE_GOLD.trim()} Золотая верификация выдана пользователю <code>${targetId}</code>.`
+      : `Золотая верификация снята с пользователя <code>${targetId}</code>.`,
+  );
+}
+
 async function cmdBanUnban(ctx: Ctx, msg: TgMessage, ban: boolean): Promise<void> {
   const parts = (msg.text ?? "").split(/\s+/).filter(Boolean);
   const cmd = ban ? "/ban" : "/unban";
@@ -704,6 +754,12 @@ export async function handleMessage(ctx: Ctx, msg: TgMessage): Promise<void> {
         return;
       case "/testtext":
         if (isAdmin(ctx, user.id)) return cmdTestText(ctx, msg);
+        return;
+      case "/gold":
+        if (isAdmin(ctx, user.id)) return cmdGold(ctx, msg, true);
+        return;
+      case "/ungold":
+        if (isAdmin(ctx, user.id)) return cmdGold(ctx, msg, false);
         return;
       case "/ban":
         if (isAdmin(ctx, user.id)) return cmdBanUnban(ctx, msg, true);
