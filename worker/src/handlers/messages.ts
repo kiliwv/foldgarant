@@ -96,8 +96,7 @@ export async function profileText(ctx: Ctx, userId: number): Promise<string> {
     : "0";
 
   const lines = [
-    `👤 <b>Профиль ${escapeHtml(name)}</b>${badge}`,
-    `ID: <code>${userId}</code>`,
+    `👤 <b>Профиль ${escapeHtml(name)}</b>${badge} ID: <code>${userId}</code>`,
     "",
     `⭐️ Репутация: ${reputationLine(stats.positive, stats.negative)}`,
     `🤝 Сделки: <b>${stats.completed}</b> шт · оборот: ${volume}`,
